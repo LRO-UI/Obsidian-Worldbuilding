@@ -1,0 +1,9 @@
+{
+  "id": "story-characters-timeline",
+  "name": "Story Characters & Timeline",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Character sheets, a character creation wizard and an in-world calendar timeline for novelists and worldbuilders.",
+  "author": "Lucas R. Oliveira",
+  "isDesktopOnly": false
+}
