@@ -1,4 +1,4 @@
-# Story Characters & Timeline
+# Worldbuilding
 
 An Obsidian plugin for novelists and worldbuilders. It provides character sheets, a character creation wizard, and an in-world timeline. All data lives in note frontmatter, so it stays plain Markdown, works with Dataview, and syncs.
 
@@ -11,6 +11,7 @@ An Obsidian plugin for novelists and worldbuilders. It provides character sheets
 Notes with `type: character` open as a sheet. The **Full** layout has three columns (portrait, vitals, traits | properties, stat radar, backstory | goals, relationships, inventory, linked notes) plus a Description section. The **Dossier** layout has a header and tabs. Pick the default in settings or switch per view with the layout button.
 
 - Click a vital's value to edit it (`34 / 40`). Click a goal's checkbox to toggle it. Click the portrait to pick an image from the vault.
+- The **wand** button next to **Edit** reopens the note in its form editor, pre-filled: the creation wizard for characters, the city editor for cities. It is also in the view header, the file menu, and the command **Edit current note in wizard**. Saving writes changes back in place and keeps any frontmatter the form doesn't manage (vitals, inventory, custom keys). Changing the name renames the file, and Obsidian updates links to it.
 - **Edit** switches to the Markdown editor. Use the person icon in the editor's header to go back to the sheet.
 
 | Full layout: Description section | Dossier layout |
@@ -111,6 +112,21 @@ POV counts come from notes in the manuscript folder that have `pov: "[[Character
 | --- | --- | --- |
 | ![Settings: folders, sheet layout and calendar](docs/screenshots/settings-general.png) | ![Settings: event categories and description fields](docs/screenshots/settings-categories-fields.png) | ![Settings: city sheet rows and tables](docs/screenshots/settings-city-sheet.png) |
 
+## Installing and updating
+
+- **From Obsidian (once listed):** Settings → Community plugins → Browse → search "Worldbuilding". Updates arrive through **Check for updates**, or automatically if "Automatically check for plugin updates" is on.
+- **Before it is listed, with BRAT:** install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, choose "Add beta plugin", and paste `LRO-UI/Obsidian-Worldbuilding`. BRAT installs the latest release and keeps it updated.
+- **By hand:** download `main.js`, `manifest.json` and `styles.css` from the latest [release](https://github.com/LRO-UI/Obsidian-Worldbuilding/releases) into `<vault>/.obsidian/plugins/worldbuilding/`.
+
+## Publishing a new version
+
+```bash
+npm version patch   # or minor / major: bumps package.json, manifest.json and versions.json, commits and tags
+git push --follow-tags
+```
+
+Pushing the tag runs `.github/workflows/release.yml`, which builds the plugin and publishes a GitHub release with `main.js`, `manifest.json` and `styles.css`. Obsidian and BRAT pick it up from there.
+
 ## Development
 
 ```bash
@@ -121,6 +137,6 @@ npm run install-example    # build and copy into example-vault/
 npm run install-vault -- "C:/path/to/YourVault"   # copy a build into any vault
 ```
 
-Then enable **Story Characters & Timeline** under Settings → Community plugins.
+Then enable **Worldbuilding** under Settings → Community plugins.
 
 Colours come only from Obsidian theme variables, so the plugin follows light and dark themes. All classes use the `ct-` prefix.

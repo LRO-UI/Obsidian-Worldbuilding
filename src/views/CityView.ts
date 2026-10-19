@@ -22,6 +22,10 @@ export class CityView extends NoteSheetView {
 		return "castle";
 	}
 
+	protected openEditor(): void {
+		if (this.file) this.plugin.openCityModal(this.file);
+	}
+
 	protected renderEmpty(root: HTMLElement): void {
 		const box = root.createDiv({ cls: "ct-empty" });
 		setIcon(box.createDiv({ cls: "ct-empty-icon" }), "castle");
@@ -39,7 +43,7 @@ export class CityView extends NoteSheetView {
 		titles.createDiv({ cls: "ct-name", text: String(fm.name ?? "") || file.basename });
 		if (fm.motto) titles.createDiv({ cls: "ct-quote", text: `“${String(fm.motto).replace(/^["“]|["”]$/g, "")}”` });
 		const btns = header.createDiv({ cls: "ct-header-btns" });
-		button(btns, "Edit", () => this.editSource());
+		this.editButtons(btns);
 		button(btns, "Add image", () => this.pickImage());
 
 		this.renderGallery(page, file, fm);

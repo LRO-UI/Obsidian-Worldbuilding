@@ -1,8 +1,9 @@
-import { App, Modal, Notice, normalizePath, setIcon, stringifyYaml } from "obsidian";
+import { App, Modal, Notice, normalizePath, setIcon, stringifyYaml, TFile } from "obsidian";
+import { pathForName, renameToName, replaceBody, setOrDelete } from "../editing";
 import type StoryPlugin from "../main";
-import { ensureFolder, joinPath, safeFileName, STAT_HINTS, STAT_KEYS, STAT_NAMES, StatKey } from "../model";
+import { ensureFolder, joinPath, parseCharacter, safeFileName, STAT_HINTS, STAT_KEYS, STAT_NAMES, StatKey } from "../model";
 import { DescField, DescGroupKey, GROUP_TITLES } from "../settings";
-import { button, ImagePickerModal, NoteSuggest, renderRadar } from "../ui/components";
+import { button, ImagePickerModal, NoteSuggest, renderRadar, tagInput } from "../ui/components";
 
 const STEPS = ["Identity", "Attributes", "Description", "Traits", "Relationships", "Lore"];
 const HELP = [
@@ -44,15 +45,18 @@ export class CharacterWizard extends Modal {
 	private errors: Record<string, string> = {};
 	private railEl!: HTMLElement;
 	private mainEl!: HTMLElement;
+	/** Edit mode: each goal's done state and the body as loaded, so unchanged parts are kept. */
+	private goalDone = new Map<string, boolean>();
+	private originalLore = "";
 
-	constructor(app: App, private plugin: StoryPlugin) {
+	constructor(app: App, private plugin: StoryPlugin, private file: TFile | null = null) {
 		super(app);
 		const s = plugin.settings;
 		const stats = {} as Record<StatKey, number>;
 		STAT_KEYS.forEach((k) => (stats[k] = s.statBase));
 		const desc = { appearance: {}, personality: {}, narration: {} } as Draft["desc"];
 		(Object.keys(desc) as DescGroupKey[]).forEach((g) =>
-			s.descFields[g].forEach((f) => (desc[g][f.key] = { text: "", color: "#808080" }))
+			s.descFields[g].forEach((f) => (desc[g][f.key] = { text: "", color: "" }))
 		);
 		this.draft = {
 			name: "", quote: "", role: "", ancestry: "", bornMonth: 0, bornYear: "",
@@ -65,7 +69,38 @@ export class CharacterWizard extends Modal {
 		return (f.options ?? "").split(",").map((o) => o.trim()).filter(Boolean);
 	}
 
-	onOpen(): void {
+	private get editing(): boolean {
+		return !!this.file;
+	}
+
+	/** Fills the draft from the note's frontmatter and body. */
+	private async loadFromFile(file: TFile): Promise<void> {
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+		const c = parseCharacter(fm, file.basename);
+		const d = this.draft;
+		Object.assign(d, {
+			name: c.name, quote: c.quote, role: c.role, ancestry: c.ancestry,
+			bornMonth: c.born?.month ?? 0, bornYear: c.born ? String(c.born.year) : "",
+			affiliation: c.affiliation, faction: c.faction, factionTag: c.factionTag, status: c.status,
+			storyRole: c.storyRole, portrait: c.portrait,
+			traits: [...c.traits], values: [...c.values], weaknesses: [...c.weaknesses],
+			goals: c.goals.map((g) => g.text),
+			relationships: c.relationships.map((r) => ({ ...r })),
+		});
+		c.goals.forEach((g) => this.goalDone.set(g.text, g.done));
+		const statsRaw = (fm.stats ?? {}) as Record<string, unknown>;
+		for (const k of STAT_KEYS) if (statsRaw[k] != null || statsRaw[k.toUpperCase()] != null) d.stats[k] = c.stats[k];
+		for (const g of Object.keys(d.desc) as DescGroupKey[]) {
+			for (const [k, v] of Object.entries(c.description[g] ?? {})) d.desc[g][k] = { text: v.text, color: v.color ?? "" };
+		}
+		const text = await this.app.vault.cachedRead(file);
+		const end = this.app.metadataCache.getFileCache(file)?.frontmatterPosition?.end.offset;
+		d.lore = this.originalLore = (end != null ? text.slice(end) : text).trim();
+		this.reached = STEPS.length - 1;
+	}
+
+	async onOpen(): Promise<void> {
+		if (this.file) await this.loadFromFile(this.file);
 		this.modalEl.addClass("ct-wizard-modal");
 		this.contentEl.empty();
 		const shell = this.contentEl.createDiv({ cls: "ct-wizard" });
@@ -80,6 +115,7 @@ export class CharacterWizard extends Modal {
 	}
 
 	private get filePath(): string {
+		if (this.file) return pathForName(this.file, this.draft.name);
 		const name = safeFileName(this.draft.name) || "<Name>";
 		return normalizePath(joinPath(this.plugin.settings.charactersFolder, `${name}.md`));
 	}
@@ -88,7 +124,7 @@ export class CharacterWizard extends Modal {
 		this.errors = {};
 		const name = safeFileName(this.draft.name);
 		if (!name) this.errors.name = "A name is required.";
-		else if (this.app.vault.getAbstractFileByPath(this.filePath)) this.errors.name = `${this.filePath} already exists. Pick another name.`;
+		else if (this.filePath !== this.file?.path && this.app.vault.getAbstractFileByPath(this.filePath)) this.errors.name = `${this.filePath} already exists. Pick another name.`;
 		return !this.errors.name;
 	}
 
@@ -122,17 +158,20 @@ export class CharacterWizard extends Modal {
 		[this.stepIdentity, this.stepAttributes, this.stepDescription, this.stepTraits, this.stepRelationships, this.stepLore][this.step].call(this, body);
 
 		const foot = main.createDiv({ cls: "ct-wizard-foot" });
-		foot.createDiv({ cls: "ct-faint ct-12", text: `Saves to ${this.filePath}` });
+		foot.createDiv({ cls: "ct-faint ct-12", text: this.footText() });
 		const btns = foot.createDiv({ cls: "ct-row-8" });
 		if (this.step > 0) button(btns, "Back", () => this.go(this.step - 1));
-		if (this.step < STEPS.length - 1) button(btns, `Next: ${STEPS[this.step + 1]}`, () => this.go(this.step + 1), "ct-btn mod-cta");
+		if (this.editing) {
+			if (this.step < STEPS.length - 1) button(btns, `Next: ${STEPS[this.step + 1]}`, () => this.go(this.step + 1));
+			button(btns, "Save changes", () => this.save(), "ct-btn mod-cta");
+		} else if (this.step < STEPS.length - 1) button(btns, `Next: ${STEPS[this.step + 1]}`, () => this.go(this.step + 1), "ct-btn mod-cta");
 		else button(btns, "Create character", () => this.create(), "ct-btn mod-cta");
 	}
 
 	private renderRail(): void {
 		const rail = this.railEl;
 		rail.empty();
-		rail.createDiv({ cls: "ct-wizard-title", text: "New character" });
+		rail.createDiv({ cls: "ct-wizard-title", text: this.editing ? "Edit character" : "New character" });
 		STEPS.forEach((label, i) => {
 			const done = i < this.step || (i <= this.reached && i !== this.step);
 			const row = rail.createDiv({ cls: `ct-step ${i === this.step ? "is-current" : ""} ${done ? "is-done" : ""} ${i > this.reached ? "is-future" : ""}` });
@@ -168,10 +207,10 @@ export class CharacterWizard extends Modal {
 			onChange: (v) => {
 				d.name = v;
 				const foot = this.mainEl.querySelector(".ct-wizard-foot .ct-faint");
-				if (foot) foot.setText(`Saves to ${this.filePath}`);
+				if (foot) foot.setText(this.footText());
 			},
 		});
-		window.setTimeout(() => nameInput.focus(), 0);
+		if (!this.editing) window.setTimeout(() => nameInput.focus(), 0);
 		this.field(grid, "Quote", { value: d.quote, onChange: (v) => (d.quote = v), full: true, placeholder: "A line they'd say" });
 		this.field(grid, "Role", { value: d.role, onChange: (v) => (d.role = v), placeholder: "Cartographer, sellsword" });
 		this.field(grid, "Ancestry", { value: d.ancestry, onChange: (v) => (d.ancestry = v) });
@@ -217,7 +256,8 @@ export class CharacterWizard extends Modal {
 			name.createDiv({ cls: "ct-faint ct-11", text: STAT_HINTS[k] });
 			const set = (delta: number) => {
 				const v = d.stats[k] + delta;
-				if (v < s.statMin || v > s.statMax || this.spent + delta > s.pointPool) return;
+				// Lowering is always allowed, so a character already over the pool can be brought back under it.
+				if (v < s.statMin || v > s.statMax || (delta > 0 && this.spent + delta > s.pointPool)) return;
 				d.stats[k] = v;
 				this.render();
 			};
@@ -239,7 +279,7 @@ export class CharacterWizard extends Modal {
 			sec.createDiv({ cls: "ct-label", text: GROUP_TITLES[g] });
 			const grid = sec.createDiv({ cls: "ct-form-grid" });
 			for (const f of s.descFields[g]) {
-				const val = (this.draft.desc[g][f.key] ??= { text: "", color: "#808080" });
+				const val = (this.draft.desc[g][f.key] ??= { text: "", color: "" });
 				const wrap = grid.createDiv({ cls: `ct-field ${f.type === "textarea" ? "is-full" : ""}` });
 				wrap.createEl("label", { text: f.label });
 				if (f.type === "enum") {
@@ -254,7 +294,7 @@ export class CharacterWizard extends Modal {
 				} else {
 					const row = wrap.createDiv({ cls: "ct-row-8" });
 					if (f.type === "color") {
-						const c = row.createEl("input", { type: "color", value: val.color, cls: "ct-color" });
+						const c = row.createEl("input", { type: "color", value: val.color || "#808080", cls: "ct-color" });
 						c.addEventListener("input", () => (val.color = c.value));
 					}
 					const t = row.createEl("input", { type: "text", value: val.text });
@@ -264,45 +304,13 @@ export class CharacterWizard extends Modal {
 		}
 	}
 
-	private tagInput(parent: HTMLElement, label: string, list: string[], color: string): void {
-		const wrap = parent.createDiv({ cls: "ct-field is-full" });
-		wrap.createEl("label", { text: label });
-		const box = wrap.createDiv({ cls: "ct-tag-input" });
-		const draw = () => {
-			box.empty();
-			list.forEach((t, i) => {
-				const p = box.createSpan({ cls: "ct-pill", text: t });
-				p.style.setProperty("--ct-c", `var(--color-${color})`);
-				const x = p.createSpan({ cls: "ct-pill-x", text: "×", attr: { "aria-label": `Remove ${t}` } });
-				x.addEventListener("click", () => {
-					list.splice(i, 1);
-					draw();
-				});
-			});
-			const input = box.createEl("input", { type: "text", attr: { placeholder: list.length ? "" : "Type and press Enter" } });
-			input.addEventListener("keydown", (e) => {
-				if ((e.key === "Enter" || e.key === ",") && input.value.trim()) {
-					e.preventDefault();
-					list.push(input.value.trim().replace(/,$/, ""));
-					draw();
-					(box.querySelector("input") as HTMLInputElement).focus();
-				} else if (e.key === "Backspace" && !input.value && list.length) {
-					list.pop();
-					draw();
-					(box.querySelector("input") as HTMLInputElement).focus();
-				}
-			});
-		};
-		draw();
-	}
-
 	private stepTraits(body: HTMLElement): void {
 		const d = this.draft;
 		const g = body.createDiv({ cls: "ct-form-grid" });
-		this.tagInput(g, "Traits", d.traits, "green");
-		this.tagInput(g, "Values", d.values, "blue");
-		this.tagInput(g, "Weaknesses", d.weaknesses, "red");
-		this.tagInput(g, "Goals", d.goals, "purple");
+		tagInput(this.app, g, "Traits", d.traits, "green");
+		tagInput(this.app, g, "Values", d.values, "blue");
+		tagInput(this.app, g, "Weaknesses", d.weaknesses, "red");
+		tagInput(this.app, g, "Goals", d.goals, "purple");
 	}
 
 	private stepRelationships(body: HTMLElement): void {
@@ -365,7 +373,7 @@ export class CharacterWizard extends Modal {
 		put("traits", d.traits);
 		put("values", d.values);
 		put("weaknesses", d.weaknesses);
-		put("goals", d.goals.map((text) => ({ text, done: false })));
+		put("goals", d.goals.map((text) => ({ text, done: this.goalDone.get(text) ?? false })));
 		put("relationships", d.relationships.filter((r) => r.who.trim()).map((r) => (r.kind.trim() ? r : { who: r.who, score: r.score })));
 
 		const description: Record<string, Record<string, unknown>> = {};
@@ -374,12 +382,54 @@ export class CharacterWizard extends Modal {
 			for (const f of s.descFields[g]) {
 				const v = d.desc[g][f.key];
 				if (!v?.text) continue;
-				out[f.key] = f.type === "color" ? { text: v.text, color: v.color } : v.text;
+				out[f.key] = f.type === "color" && v.color ? { text: v.text, color: v.color } : v.text;
 			}
 			if (Object.keys(out).length) description[g] = out;
 		}
 		if (Object.keys(description).length) fm.description = description;
 		return fm;
+	}
+
+	private footText(): string {
+		if (!this.file) return `Saves to ${this.filePath}`;
+		return this.filePath === this.file.path ? `Editing ${this.file.path}` : `Saves and renames to ${this.filePath}`;
+	}
+
+	/** Edit mode: writes the wizard's keys back in place and keeps everything else in the frontmatter. */
+	private async save(): Promise<void> {
+		const file = this.file;
+		if (!file) return;
+		if (!this.validateIdentity()) {
+			this.step = 0;
+			this.render();
+			return;
+		}
+		const next = this.buildFrontmatter();
+		const managed = ["name", "quote", "portrait", "status", "role", "ancestry", "born", "affiliation", "faction", "faction_tag", "story_role", "stats", "traits", "values", "weaknesses", "goals", "relationships"];
+		try {
+			await this.app.fileManager.processFrontMatter(file, (fm) => {
+				// Don't add a stats block to a character that never had one unless a stat was changed.
+				const untouchedStats = fm.stats == null && STAT_KEYS.every((k) => this.draft.stats[k] === this.plugin.settings.statBase);
+				for (const k of managed) if (!(k === "stats" && untouchedStats)) setOrDelete(fm, k, next[k]);
+				// Merge description per group so fields not configured in settings survive.
+				const desc = (fm.description && typeof fm.description === "object" ? fm.description : {}) as Record<string, Record<string, unknown>>;
+				const nextDesc = (next.description ?? {}) as Record<string, Record<string, unknown>>;
+				for (const g of Object.keys(GROUP_TITLES) as DescGroupKey[]) {
+					const group = { ...(desc[g] ?? {}) };
+					for (const f of this.plugin.settings.descFields[g]) setOrDelete(group, f.key, nextDesc[g]?.[f.key]);
+					setOrDelete(desc, g, group);
+				}
+				setOrDelete(fm, "description", desc);
+			});
+			if (this.draft.lore.trim() !== this.originalLore) await replaceBody(this.app, file, this.draft.lore);
+			const renamed = this.filePath !== file.path;
+			await renameToName(this.app, file, this.draft.name);
+			this.close();
+			new Notice(renamed ? `Saved and renamed to ${file.basename}.` : `Saved ${file.basename}.`);
+		} catch (e) {
+			console.error(e);
+			new Notice(`Couldn't save character: ${(e as Error).message}`);
+		}
 	}
 
 	private async create(): Promise<void> {

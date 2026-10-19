@@ -59,7 +59,7 @@ export function renderLinkish(app: App, parent: HTMLElement, raw: string, source
 		app.workspace.openLinkText(target, sourcePath, Keymap.isModEvent(e));
 	});
 	a.addEventListener("mouseover", (e) => {
-		app.workspace.trigger("hover-link", { event: e, source: "story-characters-timeline", hoverParent: parent, targetEl: a, linktext: target, sourcePath });
+		app.workspace.trigger("hover-link", { event: e, source: "worldbuilding", hoverParent: parent, targetEl: a, linktext: target, sourcePath });
 	});
 	return a;
 }
@@ -169,4 +169,42 @@ export class ImageLightbox extends Modal {
 	onClose(): void {
 		this.contentEl.empty();
 	}
+}
+
+/** A pill-style list input: Enter or comma adds, × or Backspace removes. Mutates `list` in place. */
+export function tagInput(app: App, parent: HTMLElement, label: string, list: string[], color: string, opts: { suggestNotes?: boolean; full?: boolean } = {}): void {
+	const wrap = parent.createDiv({ cls: `ct-field ${opts.full === false ? "" : "is-full"}` });
+	if (label) wrap.createEl("label", { text: label });
+	const box = wrap.createDiv({ cls: "ct-tag-input" });
+	const add = (v: string) => {
+		const t = v.trim().replace(/,$/, "");
+		if (t) list.push(t);
+		draw();
+		(box.querySelector("input") as HTMLInputElement | null)?.focus();
+	};
+	const draw = () => {
+		box.empty();
+		list.forEach((t, i) => {
+			const p = box.createSpan({ cls: "ct-pill", text: t });
+			p.style.setProperty("--ct-c", `var(--color-${color})`);
+			const x = p.createSpan({ cls: "ct-pill-x", text: "×", attr: { "aria-label": `Remove ${t}` } });
+			x.addEventListener("click", () => {
+				list.splice(i, 1);
+				draw();
+			});
+		});
+		const input = box.createEl("input", { type: "text", attr: { placeholder: list.length ? "" : opts.suggestNotes ? "Type a note name" : "Type and press Enter" } });
+		input.addEventListener("keydown", (e) => {
+			if ((e.key === "Enter" || e.key === ",") && input.value.trim()) {
+				e.preventDefault();
+				add(input.value);
+			} else if (e.key === "Backspace" && !input.value && list.length) {
+				list.pop();
+				draw();
+				(box.querySelector("input") as HTMLInputElement).focus();
+			}
+		});
+		if (opts.suggestNotes) new NoteSuggest(app, input, (link) => add(link));
+	};
+	draw();
 }

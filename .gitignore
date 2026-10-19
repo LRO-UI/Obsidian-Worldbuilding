@@ -2,8 +2,8 @@ node_modules/
 main.js
 *.map
 data.json
-example-vault/.obsidian/plugins/story-characters-timeline/main.js
-example-vault/.obsidian/plugins/story-characters-timeline/manifest.json
-example-vault/.obsidian/plugins/story-characters-timeline/styles.css
+example-vault/.obsidian/plugins/worldbuilding/main.js
+example-vault/.obsidian/plugins/worldbuilding/manifest.json
+example-vault/.obsidian/plugins/worldbuilding/styles.css
 example-vault/.obsidian/workspace.json
 .claude/settings.local.json

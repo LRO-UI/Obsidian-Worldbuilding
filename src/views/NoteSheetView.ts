@@ -1,5 +1,6 @@
-import { Component, ItemView, MarkdownRenderer, TFile, ViewStateResult, WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, MarkdownRenderer, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
 import type StoryPlugin from "../main";
+import { button } from "../ui/components";
 
 export interface NoteSheetState {
 	file?: string;
@@ -25,6 +26,16 @@ export abstract class NoteSheetView extends ItemView {
 	protected abstract renderSheet(root: HTMLElement, file: TFile, fm: Record<string, unknown>, body: string): void;
 	/** Header actions specific to the subclass. */
 	protected addViewActions(): void {}
+	/** Opens the form-based editor (wizard) for this note. */
+	protected abstract openEditor(): void;
+
+	/** The "Edit" button plus a wand icon button that opens the wizard editor. */
+	protected editButtons(parent: HTMLElement): void {
+		button(parent, "Edit", () => this.editSource()).setAttr("aria-label", "Edit the Markdown");
+		const wand = button(parent, "", () => this.openEditor(), "ct-btn is-icon");
+		wand.setAttr("aria-label", "Edit in wizard");
+		setIcon(wand, "wand-sparkles");
+	}
 
 	getDisplayText(): string {
 		return this.file?.basename ?? this.fallbackTitle;
@@ -39,6 +50,7 @@ export abstract class NoteSheetView extends ItemView {
 		this.contentEl.addClass("ct-view");
 		this.addViewActions();
 		this.addAction("pencil", "Edit note", () => this.editSource());
+		this.addAction("wand-sparkles", "Edit in wizard", () => this.openEditor());
 		this.registerEvent(
 			this.app.metadataCache.on("changed", (f) => {
 				if (f === this.file) this.render();

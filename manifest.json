@@ -1,9 +1,10 @@
 {
-  "id": "story-characters-timeline",
-  "name": "Story Characters & Timeline",
-  "version": "0.1.0",
+  "id": "worldbuilding",
+  "name": "Worldbuilding",
+  "version": "1.2.0",
   "minAppVersion": "1.5.0",
-  "description": "Character sheets, a character creation wizard and an in-world calendar timeline for novelists and worldbuilders.",
-  "author": "Lucas R. Oliveira",
-  "isDesktopOnly": false
+  "description": "Character sheets, a creation wizard, city pages and an in-world calendar timeline for novelists and worldbuilders.",
+  "author": "LRO",
+  "isDesktopOnly": false,
+  "authorUrl": "https://github.com/LRO-UI"
 }

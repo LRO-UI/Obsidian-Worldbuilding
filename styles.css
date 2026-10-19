@@ -1,4 +1,4 @@
-/* Story Characters & Timeline. Colours come only from Obsidian theme variables. */
+/* Worldbuilding. Colours come only from Obsidian theme variables. */
 
 /* ---------- utilities ---------- */
 .ct-view { font-family: var(--font-interface); color: var(--text-normal); }
@@ -381,3 +381,22 @@
 .ct-lightbox-nav.is-prev { left: 10px; }
 .ct-lightbox-nav.is-next { right: 10px; }
 .ct-lightbox-caption { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--text-muted); padding: 10px 4px 0; }
+
+/* ---------- wizard editing ---------- */
+.ct-btn.is-icon { padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; }
+.ct-btn.is-icon svg { width: 16px; height: 16px; }
+.ct-self-start { align-self: flex-start; }
+
+.modal.ct-city-editor-modal { width: min(760px, 95vw); max-width: 95vw; }
+.ct-city-editor-modal .modal-content { display: flex; flex-direction: column; max-height: 75vh; }
+.ct-editor-body { overflow-y: auto; display: flex; flex-direction: column; gap: 22px; padding: 4px 2px 16px; }
+.ct-city-editor-modal .ct-wizard-foot { padding: 12px 0 0; }
+.ct-image-list { display: flex; flex-direction: column; }
+.ct-image-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--background-modifier-border); }
+.ct-image-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-icon-btn:disabled { opacity: .3; cursor: default; }
+.ct-edit-table { display: flex; flex-direction: column; gap: 6px; }
+.ct-edit-table-row { display: grid; grid-template-columns: repeat(var(--ct-cols, 3), minmax(0, 1fr)) 28px; gap: 8px; align-items: center; }
+.ct-edit-table-row.is-head span { text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.ct-edit-table-row input { width: 100%; }
+.ct-lore-input.is-short { min-height: 160px; }

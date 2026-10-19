@@ -33,6 +33,10 @@ export class CharacterView extends NoteSheetView {
 		return this.layoutOverride ?? this.plugin.settings.defaultLayout;
 	}
 
+	protected openEditor(): void {
+		if (this.file) this.plugin.openWizard(this.file);
+	}
+
 	protected addViewActions(): void {
 		this.addAction("layout-panel-left", "Switch sheet layout", () => {
 			this.layoutOverride = this.layout === "full" ? "dossier" : "full";
@@ -204,7 +208,7 @@ export class CharacterView extends NoteSheetView {
 
 	private headerButtons(parent: HTMLElement, file: TFile): void {
 		const btns = parent.createDiv({ cls: "ct-header-btns" });
-		button(btns, "Edit", () => this.editSource());
+		this.editButtons(btns);
 		button(btns, "Show on timeline", () => this.plugin.openTimeline({ focusLane: file.basename }));
 	}
 

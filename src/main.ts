@@ -29,6 +29,7 @@ export default class StoryPlugin extends Plugin {
 	/** Leaves where the user pressed Edit, so we don't bounce them back to the sheet. */
 	private editing = new WeakMap<WorkspaceLeaf, string>();
 	private sheetActions = new WeakMap<MarkdownView, HTMLElement>();
+	private wizardActions = new WeakMap<MarkdownView, HTMLElement>();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -43,6 +44,16 @@ export default class StoryPlugin extends Plugin {
 		this.addRibbonIcon("git-commit-horizontal", "Open story timeline", () => this.openTimeline());
 
 		this.addCommand({ id: "create-character", name: "Create new character", callback: () => this.openWizard() });
+		this.addCommand({
+			id: "edit-in-wizard",
+			name: "Edit current note in wizard",
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!file || !this.sheetFor(file)) return false;
+				if (!checking) this.editInWizard(file);
+				return true;
+			},
+		});
 		this.addCommand({ id: "create-city", name: "Create new city", callback: () => this.openCityModal() });
 		this.addCommand({ id: "open-timeline", name: "Open story timeline", callback: () => this.openTimeline() });
 		this.addCommand({ id: "create-event", name: "Create new timeline event", callback: () => new EventModal(this.app, this).open() });
@@ -61,7 +72,10 @@ export default class StoryPlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				const sheet = file instanceof TFile ? this.sheetFor(file) : null;
-				if (file instanceof TFile && sheet) menu.addItem((i) => i.setTitle(`Open as ${sheet.label}`).setIcon(sheet.icon).onClick(() => this.openSheet(file)));
+				if (file instanceof TFile && sheet) {
+					menu.addItem((i) => i.setTitle(`Open as ${sheet.label}`).setIcon(sheet.icon).onClick(() => this.openSheet(file)));
+					menu.addItem((i) => i.setTitle("Edit in wizard").setIcon("wand-sparkles").onClick(() => this.editInWizard(file)));
+				}
 				if (file instanceof TFile && isCharacter(this.app, file)) {
 					menu.addItem((i) =>
 						i.setTitle("Show on timeline").setIcon("git-commit-horizontal").onClick(() => this.openTimeline({ focusLane: file.basename }))
@@ -148,6 +162,15 @@ export default class StoryPlugin extends Plugin {
 			el.setAttr("aria-label", `Open ${sheet.label}`);
 		}
 		el?.toggle(!!sheet);
+
+		let wand = this.wizardActions.get(view);
+		if (sheet && !wand) {
+			wand = view.addAction("wand-sparkles", "Edit in wizard", () => {
+				if (view.file) this.editInWizard(view.file);
+			});
+			this.wizardActions.set(view, wand);
+		}
+		wand?.toggle(!!sheet);
 	}
 
 	private async showSheet(leaf: WorkspaceLeaf, file: TFile): Promise<void> {
@@ -163,12 +186,23 @@ export default class StoryPlugin extends Plugin {
 		this.app.workspace.revealLeaf(leaf);
 	}
 
-	openCityModal(): void {
-		new CityModal(this.app, this, (f) => this.openSheet(f)).open();
+	/** New city, or edit `file` in place. */
+	openCityModal(file?: TFile): void {
+		new CityModal(this.app, this, (f) => this.openSheet(f), file ?? null).open();
 	}
 
-	openWizard(): void {
-		new CharacterWizard(this.app, this).open();
+	/** New character, or edit `file` in place. */
+	openWizard(file?: TFile): void {
+		new CharacterWizard(this.app, this, file ?? null).open();
+	}
+
+	/** Opens the right form editor for a character or city note. Returns false for other notes. */
+	editInWizard(file: TFile): boolean {
+		const type = this.app.metadataCache.getFileCache(file)?.frontmatter?.type;
+		if (type === "character") this.openWizard(file);
+		else if (type === "city") this.openCityModal(file);
+		else return false;
+		return true;
 	}
 
 	// ---------- timeline ----------
