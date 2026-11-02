@@ -1,20 +1,37 @@
 import { MarkdownView, Plugin, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import { Calendar } from "./calendar";
 import { CanvasSyncRecord, canvasPath, reverseSyncFromCanvas, syncTimelineToCanvas } from "./canvas";
-import { isCharacter } from "./model";
+import { isCharacter, isScene } from "./model";
 import { CityModal } from "./modals/CityModal";
 import { CharacterWizard } from "./modals/CharacterWizard";
+import { CustomTypeModal, CustomTypePicker } from "./modals/CustomTypeModal";
 import { EventModal } from "./modals/EventModal";
-import { cloneDefaults, DescGroupKey, PluginSettings } from "./settings";
+import { FactionModal } from "./modals/FactionModal";
+import { SceneModal } from "./modals/SceneModal";
+import { SpeciesModal } from "./modals/SpeciesModal";
+import { cloneDefaults, CustomType, DescGroupKey, PluginSettings } from "./settings";
 import { StorySettingTab } from "./SettingsTab";
 import { CharacterView, VIEW_CHARACTER } from "./views/CharacterView";
 import { CityView, VIEW_CITY } from "./views/CityView";
+import { CustomSheetView, VIEW_CUSTOM } from "./views/CustomSheetView";
+import { FactionView, VIEW_FACTION } from "./views/FactionView";
+import { GallerySheetView } from "./views/GallerySheetView";
+import { ManuscriptView, VIEW_MANUSCRIPT } from "./views/ManuscriptView";
+import { SpeciesView, VIEW_SPECIES } from "./views/SpeciesView";
 import { TimelineView, VIEW_TIMELINE } from "./views/TimelineView";
 
-/** Frontmatter type → the sheet view that renders it. */
-const SHEETS: Record<string, { view: string; icon: string; label: string }> = {
+interface SheetInfo {
+	view: string;
+	icon: string;
+	label: string;
+}
+
+/** Frontmatter type → the sheet view that renders it. Custom types from settings all use VIEW_CUSTOM. */
+const SHEETS: Record<string, SheetInfo> = {
 	character: { view: VIEW_CHARACTER, icon: "user-round", label: "character sheet" },
 	city: { view: VIEW_CITY, icon: "castle", label: "city sheet" },
+	species: { view: VIEW_SPECIES, icon: "paw-print", label: "species sheet" },
+	faction: { view: VIEW_FACTION, icon: "flag", label: "faction sheet" },
 };
 
 interface StoredData extends Partial<PluginSettings> {
@@ -30,6 +47,8 @@ export default class StoryPlugin extends Plugin {
 	private editing = new WeakMap<WorkspaceLeaf, string>();
 	private sheetActions = new WeakMap<MarkdownView, HTMLElement>();
 	private wizardActions = new WeakMap<MarkdownView, HTMLElement>();
+	/** Custom types that already have a "Create new …" command. */
+	private customCommands = new Set<string>();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -38,10 +57,17 @@ export default class StoryPlugin extends Plugin {
 		this.registerView(VIEW_CHARACTER, (leaf) => new CharacterView(leaf, this));
 		this.registerView(VIEW_TIMELINE, (leaf) => new TimelineView(leaf, this));
 		this.registerView(VIEW_CITY, (leaf) => new CityView(leaf, this));
+		this.registerView(VIEW_SPECIES, (leaf) => new SpeciesView(leaf, this));
+		this.registerView(VIEW_FACTION, (leaf) => new FactionView(leaf, this));
+		this.registerView(VIEW_MANUSCRIPT, (leaf) => new ManuscriptView(leaf, this));
+		this.registerView(VIEW_CUSTOM, (leaf) => new CustomSheetView(leaf, this));
 
 		this.addRibbonIcon("user-round", "Create new character", () => this.openWizard());
 		this.addRibbonIcon("castle", "Create new city", () => this.openCityModal());
+		this.addRibbonIcon("paw-print", "Create new species", () => this.openSpeciesModal());
+		this.addRibbonIcon("flag", "Create new faction", () => this.openFactionModal());
 		this.addRibbonIcon("git-commit-horizontal", "Open story timeline", () => this.openTimeline());
+		this.addRibbonIcon("book-open-text", "Open manuscript corkboard", () => this.openManuscript());
 
 		this.addCommand({ id: "create-character", name: "Create new character", callback: () => this.openWizard() });
 		this.addCommand({
@@ -49,14 +75,29 @@ export default class StoryPlugin extends Plugin {
 			name: "Edit current note in wizard",
 			checkCallback: (checking) => {
 				const file = this.app.workspace.getActiveFile();
-				if (!file || !this.sheetFor(file)) return false;
+				if (!file || !this.hasEditor(file)) return false;
 				if (!checking) this.editInWizard(file);
 				return true;
 			},
 		});
 		this.addCommand({ id: "create-city", name: "Create new city", callback: () => this.openCityModal() });
+		this.addCommand({ id: "create-species", name: "Create new species", callback: () => this.openSpeciesModal() });
+		this.addCommand({ id: "create-faction", name: "Create new faction", callback: () => this.openFactionModal() });
+		this.addCommand({
+			id: "create-custom",
+			name: "Create new note of a custom type",
+			checkCallback: (checking) => {
+				const types = this.settings.customTypes;
+				if (!types.length) return false;
+				if (!checking) new CustomTypePicker(this.app, types, (t) => this.openCustomModal(t)).open();
+				return true;
+			},
+		});
+		this.syncCustomCommands();
 		this.addCommand({ id: "open-timeline", name: "Open story timeline", callback: () => this.openTimeline() });
 		this.addCommand({ id: "create-event", name: "Create new timeline event", callback: () => new EventModal(this.app, this).open() });
+		this.addCommand({ id: "open-manuscript", name: "Open manuscript corkboard", callback: () => this.openManuscript() });
+		this.addCommand({ id: "create-scene", name: "Create new scene", callback: () => this.openSceneModal() });
 		this.addCommand({ id: "sync-canvas", name: "Sync timeline to canvas", callback: () => this.syncCanvas() });
 		this.addCommand({
 			id: "open-character-sheet",
@@ -80,6 +121,10 @@ export default class StoryPlugin extends Plugin {
 					menu.addItem((i) =>
 						i.setTitle("Show on timeline").setIcon("git-commit-horizontal").onClick(() => this.openTimeline({ focusLane: file.basename }))
 					);
+				}
+				if (file instanceof TFile && isScene(this.app, file)) {
+					menu.addItem((i) => i.setTitle("Edit scene details").setIcon("wand-sparkles").onClick(() => this.openSceneModal(file)));
+					menu.addItem((i) => i.setTitle("Show on corkboard").setIcon("book-open-text").onClick(() => this.openManuscript({ focus: file.path })));
 				}
 			})
 		);
@@ -111,13 +156,14 @@ export default class StoryPlugin extends Plugin {
 	}
 
 	refreshViews(): void {
-		for (const type of [VIEW_CHARACTER, VIEW_CITY, VIEW_TIMELINE]) {
+		for (const type of [VIEW_CHARACTER, VIEW_CITY, VIEW_SPECIES, VIEW_FACTION, VIEW_CUSTOM, VIEW_TIMELINE, VIEW_MANUSCRIPT]) {
 			for (const leaf of this.app.workspace.getLeavesOfType(type)) {
 				const v = leaf.view;
 				if (v instanceof TimelineView) {
 					v.reload();
 					v.render();
-				} else if (v instanceof CharacterView || v instanceof CityView) v.render();
+				} else if (v instanceof ManuscriptView) v.reload();
+				else if (v instanceof CharacterView || v instanceof GallerySheetView) v.render();
 			}
 		}
 	}
@@ -136,20 +182,48 @@ export default class StoryPlugin extends Plugin {
 		if (this.editing.has(leaf) && this.editing.get(leaf) !== file?.path) this.editing.delete(leaf);
 
 		const sheet = file ? this.sheetFor(file) : null;
-		this.updateSheetAction(view, sheet);
+		this.updateSheetAction(view, sheet, !!file && isScene(this.app, file));
 		if (!file || !sheet || !this.settings.openSheetByDefault) return;
 		if (this.editing.get(leaf) === file.path) return;
 		this.showSheet(leaf, file);
 	}
 
-	private sheetFor(file: TFile): (typeof SHEETS)[string] | null {
+	private sheetFor(file: TFile): SheetInfo | null {
 		if (file.extension !== "md") return null;
 		const type = this.app.metadataCache.getFileCache(file)?.frontmatter?.type;
-		return typeof type === "string" ? SHEETS[type] ?? null : null;
+		if (typeof type !== "string") return null;
+		if (SHEETS[type]) return SHEETS[type];
+		const custom = this.customType(type);
+		return custom ? { view: VIEW_CUSTOM, icon: custom.icon || "file-text", label: `${custom.label.toLowerCase()} sheet` } : null;
+	}
+
+	/** The custom type from settings with this frontmatter `type`, if any. */
+	customType(type: unknown): CustomType | null {
+		if (typeof type !== "string" || !type) return null;
+		return this.settings.customTypes.find((t) => t.type === type) ?? null;
+	}
+
+	/** Adds a "Create new …" command for each custom type that doesn't have one yet. Commands for removed types hide themselves. */
+	syncCustomCommands(): void {
+		for (const t of this.settings.customTypes) {
+			const type = t.type;
+			if (!type || this.customCommands.has(type)) continue;
+			this.customCommands.add(type);
+			this.addCommand({
+				id: `create-custom-${type}`,
+				name: `Create new ${t.label.toLowerCase()}`,
+				checkCallback: (checking) => {
+					const def = this.customType(type);
+					if (!def) return false;
+					if (!checking) this.openCustomModal(def);
+					return true;
+				},
+			});
+		}
 	}
 
 	/** A header button on the Markdown view to jump back to the sheet. */
-	private updateSheetAction(view: MarkdownView, sheet: (typeof SHEETS)[string] | null): void {
+	private updateSheetAction(view: MarkdownView, sheet: SheetInfo | null, scene: boolean): void {
 		let el = this.sheetActions.get(view);
 		if (sheet && !el) {
 			el = view.addAction(sheet.icon, `Open ${sheet.label}`, () => {
@@ -164,13 +238,13 @@ export default class StoryPlugin extends Plugin {
 		el?.toggle(!!sheet);
 
 		let wand = this.wizardActions.get(view);
-		if (sheet && !wand) {
+		if ((sheet || scene) && !wand) {
 			wand = view.addAction("wand-sparkles", "Edit in wizard", () => {
 				if (view.file) this.editInWizard(view.file);
 			});
 			this.wizardActions.set(view, wand);
 		}
-		wand?.toggle(!!sheet);
+		wand?.toggle(!!sheet || scene);
 	}
 
 	private async showSheet(leaf: WorkspaceLeaf, file: TFile): Promise<void> {
@@ -191,16 +265,44 @@ export default class StoryPlugin extends Plugin {
 		new CityModal(this.app, this, (f) => this.openSheet(f), file ?? null).open();
 	}
 
+	/** New species, or edit `file` in place. */
+	openSpeciesModal(file?: TFile): void {
+		new SpeciesModal(this.app, this, (f) => this.openSheet(f), file ?? null).open();
+	}
+
+	/** New faction, or edit `file` in place. */
+	openFactionModal(file?: TFile): void {
+		new FactionModal(this.app, this, (f) => this.openSheet(f), file ?? null).open();
+	}
+
+	/** New note of a custom type, or edit `file` in place. */
+	openCustomModal(def: CustomType, file?: TFile): void {
+		new CustomTypeModal(this.app, this, def, (f) => this.openSheet(f), file ?? null).open();
+	}
+
+	/** New scene, or edit `file`'s scene details in place. */
+	openSceneModal(file?: TFile): void {
+		new SceneModal(this.app, this, {}, (f) => this.app.workspace.getLeaf(false).openFile(f), file ?? null).open();
+	}
+
 	/** New character, or edit `file` in place. */
 	openWizard(file?: TFile): void {
 		new CharacterWizard(this.app, this, file ?? null).open();
 	}
 
-	/** Opens the right form editor for a character or city note. Returns false for other notes. */
+	private hasEditor(file: TFile): boolean {
+		return !!this.sheetFor(file) || isScene(this.app, file);
+	}
+
+	/** Opens the right form editor for a character, city, species, faction, scene or custom-type note. Returns false for other notes. */
 	editInWizard(file: TFile): boolean {
 		const type = this.app.metadataCache.getFileCache(file)?.frontmatter?.type;
 		if (type === "character") this.openWizard(file);
 		else if (type === "city") this.openCityModal(file);
+		else if (type === "species") this.openSpeciesModal(file);
+		else if (type === "faction") this.openFactionModal(file);
+		else if (type === "scene") this.openSceneModal(file);
+		else if (this.customType(type)) this.openCustomModal(this.customType(type)!, file);
 		else return false;
 		return true;
 	}
@@ -216,6 +318,20 @@ export default class StoryPlugin extends Plugin {
 		}
 		const leaf = this.app.workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TIMELINE, active: true, state: opts.focusLane ? { focusLane: opts.focusLane } : {} });
+		this.app.workspace.revealLeaf(leaf);
+	}
+
+	// ---------- manuscript ----------
+
+	async openManuscript(opts: { focus?: string } = {}): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(VIEW_MANUSCRIPT)[0];
+		if (existing) {
+			this.app.workspace.revealLeaf(existing);
+			if (opts.focus && existing.view instanceof ManuscriptView) existing.view.focusScene(opts.focus);
+			return;
+		}
+		const leaf = this.app.workspace.getLeaf("tab");
+		await leaf.setViewState({ type: VIEW_MANUSCRIPT, active: true, state: opts.focus ? { focus: opts.focus } : {} });
 		this.app.workspace.revealLeaf(leaf);
 	}
 

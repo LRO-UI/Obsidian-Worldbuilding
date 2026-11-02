@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+<defs><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b6b7a"/><stop offset="1" stop-color="#082a33"/></linearGradient></defs>
+<rect width="800" height="500" fill="url(#w)"/>
+<g fill="#e8fbff" opacity=".12"><path d="M0 0 L120 0 L60 500 L0 500 Z"/><path d="M260 0 L330 0 L250 500 L200 500 Z"/><path d="M520 0 L600 0 L540 500 L480 500 Z"/></g>
+<g fill="#4fa39a"><path d="M180 220 c40 -25 90 -25 120 0 l30 -20 l-8 30 l8 30 l-30 -20 c-30 25 -80 25 -120 0 Z"/><path d="M380 300 c40 -25 90 -25 120 0 l30 -20 l-8 30 l8 30 l-30 -20 c-30 25 -80 25 -120 0 Z"/><path d="M470 160 c30 -18 66 -18 88 0 l22 -15 l-6 22 l6 22 l-22 -15 c-22 18 -58 18 -88 0 Z"/><path d="M230 360 c30 -18 66 -18 88 0 l22 -15 l-6 22 l6 22 l-22 -15 c-22 18 -58 18 -88 0 Z"/></g>
+<g fill="#d9fff4"><circle cx="200" cy="216" r="4"/><circle cx="400" cy="296" r="4"/><circle cx="486" cy="157" r="3"/><circle cx="246" cy="357" r="3"/></g>
+<path d="M0 470 C120 440 220 480 340 455 C470 430 600 480 800 450 L800 500 L0 500 Z" fill="#05181d"/>
+</svg>

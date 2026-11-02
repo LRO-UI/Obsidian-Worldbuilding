@@ -1,4 +1,0 @@
----
-pov: "[[Corvin Dace]]"
----
-Draft.

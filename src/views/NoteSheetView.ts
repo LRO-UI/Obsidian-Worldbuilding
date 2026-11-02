@@ -24,6 +24,10 @@ export abstract class NoteSheetView extends ItemView {
 	protected abstract readonly fallbackTitle: string;
 	protected abstract renderEmpty(root: HTMLElement): void;
 	protected abstract renderSheet(root: HTMLElement, file: TFile, fm: Record<string, unknown>, body: string): void;
+	/** Whether a note with this frontmatter `type` renders as this sheet. */
+	protected accepts(type: unknown): boolean {
+		return type === this.noteType;
+	}
 	/** Header actions specific to the subclass. */
 	protected addViewActions(): void {}
 	/** Opens the form-based editor (wizard) for this note. */
@@ -109,7 +113,7 @@ export abstract class NoteSheetView extends ItemView {
 
 		const file = this.file;
 		const fm = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null;
-		if (!file || !fm || fm.type !== this.noteType) {
+		if (!file || !fm || !this.accepts(fm.type)) {
 			this.renderEmpty(root);
 			return;
 		}

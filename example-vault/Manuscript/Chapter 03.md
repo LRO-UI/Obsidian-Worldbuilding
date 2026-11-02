@@ -1,4 +1,0 @@
----
-pov: "[[Ilsa Rhee]]"
----
-Draft.

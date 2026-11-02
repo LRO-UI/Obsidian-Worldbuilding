@@ -1,5 +1,5 @@
 import { Notice, TFile, ViewStateResult, setIcon } from "obsidian";
-import { Character, initials, linkBasename, parseCharacter, parseLink, STAT_KEYS } from "../model";
+import { Character, initials, isScene, linkBasename, parseCharacter, parseLink, STAT_KEYS } from "../model";
 import { DescGroupKey, GROUP_TITLES, SheetLayout } from "../settings";
 import { NoteSheetView, NoteSheetState } from "./NoteSheetView";
 import { button, ImagePickerModal, pill, renderLinkish, renderRadar, resolveImage, sectionLabel } from "../ui/components";
@@ -183,11 +183,15 @@ export class CharacterView extends NoteSheetView {
 		return out.sort((a, b) => b.stat.mtime - a.stat.mtime);
 	}
 
-	/** Chapters in the manuscript folder, and how many have `pov` linking to this character. */
-	private povCount(file: TFile): { pov: number; total: number } | null {
+	/**
+	 * Scene notes (type: scene), or failing that every note in the manuscript folder, and how many have
+	 * `pov` linking to this character.
+	 */
+	private povCount(file: TFile): { pov: number; total: number; unit: string } | null {
 		const folder = this.plugin.settings.manuscriptFolder.replace(/^\/+|\/+$/g, "");
-		if (!folder) return null;
-		const chapters = this.app.vault.getMarkdownFiles().filter((f) => f.path.startsWith(folder + "/"));
+		const notes = this.app.vault.getMarkdownFiles();
+		const scenes = notes.filter((f) => isScene(this.app, f));
+		const chapters = scenes.length ? scenes : folder ? notes.filter((f) => f.path.startsWith(folder + "/")) : [];
 		if (!chapters.length) return null;
 		let pov = 0;
 		for (const ch of chapters) {
@@ -195,7 +199,7 @@ export class CharacterView extends NoteSheetView {
 			const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
 			if (list.some((p: unknown) => this.app.metadataCache.getFirstLinkpathDest(linkBasename(String(p)), ch.path) === file)) pov++;
 		}
-		return { pov, total: chapters.length };
+		return { pov, total: chapters.length, unit: scenes.length ? "scenes" : "chapters" };
 	}
 
 	private renderLinked(parent: HTMLElement, file: TFile): void {
@@ -315,7 +319,7 @@ export class CharacterView extends NoteSheetView {
 			}
 			if (g === "narration") {
 				if (c.storyRole) this.descRow(col, "Role", { text: c.storyRole }, false);
-				if (pov) this.descRow(col, "Chapters", { text: `${pov.pov} of ${pov.total} from this POV` }, false);
+				if (pov) this.descRow(col, pov.unit === "scenes" ? "Scenes" : "Chapters", { text: `${pov.pov} of ${pov.total} from this POV` }, false);
 			}
 		}
 
@@ -328,7 +332,7 @@ export class CharacterView extends NoteSheetView {
 			row.createSpan({ cls: "ct-label", text: "Voice sample" });
 			if (pv) row.createSpan({ cls: "ct-chip", text: pv });
 			if (tense) row.createSpan({ cls: "ct-chip", text: `${tense} tense` });
-			if (pov) row.createSpan({ cls: "ct-chip", text: `POV in ${pov.pov} / ${pov.total} chapters` });
+			if (pov) row.createSpan({ cls: "ct-chip", text: `POV in ${pov.pov} / ${pov.total} ${pov.unit}` });
 			card.createDiv({ cls: "ct-voice-text", text: sample ? `“${sample.replace(/^["“]|["”]$/g, "")}”` : "No voice sample yet." });
 		}
 	}
@@ -471,7 +475,7 @@ export class CharacterView extends NoteSheetView {
 				if (f.key === "voice_sample") continue;
 				add(f.label, this.descValue(c, g, f.key), f.type === "color");
 			}
-			if (g === "narration" && pov) add("Chapters", { text: `${pov.pov} of ${pov.total} from this POV` }, false);
+			if (g === "narration" && pov) add(pov.unit === "scenes" ? "Scenes" : "Chapters", { text: `${pov.pov} of ${pov.total} from this POV` }, false);
 		}
 		const sample = this.descValue(c, "narration", "voice_sample")?.text;
 		if (sample) {

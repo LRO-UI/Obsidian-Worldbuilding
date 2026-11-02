@@ -94,9 +94,7 @@ export function parseCharacter(fm: Record<string, unknown>, fallbackName: string
 		traits: arr(fm.traits).map(str),
 		values: arr(fm.values).map(str),
 		weaknesses: arr(fm.weaknesses).map(str),
-		goals: arr(fm.goals).map((g) =>
-			typeof g === "object" && g ? { text: str((g as Goal).text), done: !!(g as Goal).done } : { text: str(g), done: false }
-		),
+		goals: parseGoals(fm.goals),
 		relationships: arr(fm.relationships).map((r) => {
 			const o = (r ?? {}) as Record<string, unknown>;
 			return { who: str(o.who), kind: str(o.kind), score: Number(o.score) || 0 };
@@ -107,6 +105,13 @@ export function parseCharacter(fm: Record<string, unknown>, fallbackName: string
 		}),
 		description,
 	};
+}
+
+/** Goals may be plain strings or { text, done } objects. */
+export function parseGoals(v: unknown): Goal[] {
+	return arr(v).map((g) =>
+		typeof g === "object" && g ? { text: str((g as Goal).text), done: !!(g as Goal).done } : { text: str(g), done: false }
+	);
 }
 
 /** "[[Target|Alias]]" → { target, display }. Plain strings pass through as display with no target. */
@@ -120,6 +125,12 @@ export function parseLink(raw: string): { target: string | null; display: string
 export function linkBasename(raw: string): string {
 	const { target, display } = parseLink(raw);
 	return target ? (target.split("/").pop() ?? target).replace(/\.md$/, "") : display;
+}
+
+/** The note the first [[link]] in `raw` points to, e.g. "[[Corvin Dace]] (since the Fall)" → Corvin Dace.md. */
+export function resolveFirstLink(app: App, raw: unknown, sourcePath: string): TFile | null {
+	const m = /\[\[([^\]|#]+)/.exec(str(raw));
+	return m ? app.metadataCache.getFirstLinkpathDest(m[1].trim(), sourcePath) : null;
 }
 
 export function initials(name: string): string {
@@ -178,4 +189,92 @@ export async function ensureFolder(app: App, folder: string): Promise<void> {
 		acc = acc ? `${acc}/${part}` : part;
 		if (!app.vault.getAbstractFileByPath(acc)) await app.vault.createFolder(acc);
 	}
+}
+
+export interface NoteSection { title: string; text: string }
+
+/** Splits a note body on "## " headings (outside code fences). Text before the first heading is the intro. */
+export function splitSections(body: string): { intro: string; sections: NoteSection[] } {
+	const intro: string[] = [];
+	const sections: { title: string; lines: string[] }[] = [];
+	let fence = false;
+	for (const line of body.split(/\r?\n/)) {
+		if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+		const m = fence ? null : /^##\s+(.+?)\s*#*\s*$/.exec(line);
+		if (m) sections.push({ title: m[1], lines: [] });
+		else (sections.length ? sections[sections.length - 1].lines : intro).push(line);
+	}
+	return { intro: intro.join("\n").trim(), sections: sections.map((s) => ({ title: s.title, text: s.lines.join("\n").trim() })) };
+}
+
+/** Inverse of splitSections; sections with no text are dropped. */
+export function joinSections(intro: string, sections: NoteSection[]): string {
+	return [intro.trim(), ...sections.filter((s) => s.text.trim()).map((s) => `## ${s.title}\n\n${s.text.trim()}`)].filter(Boolean).join("\n\n");
+}
+
+// ---------- manuscript ----------
+
+export const SCENE_STATUSES = ["draft", "revised", "final"] as const;
+export type SceneStatus = (typeof SCENE_STATUSES)[number];
+export const SCENE_STATUS_COLORS: Record<SceneStatus, string> = { draft: "orange", revised: "blue", final: "green" };
+
+export interface Scene {
+	path: string;
+	title: string;
+	/** null when the scene isn't in a chapter yet. */
+	chapter: number | null;
+	order: number;
+	status: SceneStatus;
+	pov: string;
+	location: string;
+	event: string;
+	summary: string;
+}
+
+export function parseSceneStatus(v: unknown): SceneStatus {
+	const s = str(v).toLowerCase().trim();
+	return (SCENE_STATUSES as readonly string[]).includes(s) ? (s as SceneStatus) : "draft";
+}
+
+export function parseScene(file: TFile, fm: Record<string, unknown>): Scene {
+	const ch = Number(fm.chapter);
+	return {
+		path: file.path,
+		title: str(fm.title) || file.basename,
+		chapter: fm.chapter == null || fm.chapter === "" || !Number.isFinite(ch) ? null : ch,
+		order: Number(fm.order) || 0,
+		status: parseSceneStatus(fm.status),
+		pov: str(arr(fm.pov)[0]),
+		location: str(fm.location),
+		event: str(fm.event),
+		summary: str(fm.summary),
+	};
+}
+
+export function isScene(app: App, file: TFile | null): boolean {
+	if (!file || file.extension !== "md") return false;
+	return app.metadataCache.getFileCache(file)?.frontmatter?.type === "scene";
+}
+
+/** All scenes, in reading order: by chapter, then order, then title. Unplaced scenes come last. */
+export function collectScenes(app: App): Scene[] {
+	const out: Scene[] = [];
+	for (const f of app.vault.getMarkdownFiles()) {
+		const fm = app.metadataCache.getFileCache(f)?.frontmatter;
+		if (fm?.type === "scene") out.push(parseScene(f, fm));
+	}
+	return out.sort(
+		(a, b) => (a.chapter ?? Infinity) - (b.chapter ?? Infinity) || a.order - b.order || a.title.localeCompare(b.title)
+	);
+}
+
+/** Words in a note's prose: frontmatter, %%comments%%, HTML comments and Markdown syntax don't count. */
+export function countWords(text: string): number {
+	const body = text
+		.replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, "")
+		.replace(/%%[\s\S]*?%%/g, " ")
+		.replace(/<!--[\s\S]*?-->/g, " ")
+		.replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, t, a) => a ?? t)
+		.replace(/\]\([^)]*\)/g, " ");
+	return body.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }

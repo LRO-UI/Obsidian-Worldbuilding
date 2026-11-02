@@ -28,6 +28,24 @@ Notes with `type: city` open as a sheet: the name and motto, a gallery of 3–5 
 | --- | --- |
 | ![District and landmark tables, notable people and events here](docs/screenshots/city-sheet-tables.png) | ![New city dialog](docs/screenshots/city-modal.png) |
 
+### Species sheet
+
+Notes with `type: species` open as a sheet built like the city sheet: the name and epithet, the same 3–5 image gallery, an Overview next to an "At a glance" table (classification, habitat, lifespan, diet…), then one card per section: Appearance, Biology, Behaviour, Culture, Society, Ecology and History by default. Below those come configurable tables (variants and abilities by default), notable members (characters whose notes link to the species, plus any you list), and the other notes that mention it. Create one with **Create new species** or the paw-print ribbon icon.
+
+Sections are plain `## Heading`s in the note body, so you can also write them directly in Markdown. The species editor shows one text box per section; empty sections are left out of the note, and headings that aren't in your section list are kept as they are.
+
+### Faction sheet
+
+Notes with `type: faction` open as a sheet built like the city sheet: the name and motto, the image gallery, an Overview next to **Standing** (a power meter from 0 to 10 and a reputation meter from −10 to +10; click a pip to set either) and an "At a glance" table (leader, type, founded, seat, ideology…). Below those come:
+
+- **Goals**, a checklist you can tick on the sheet
+- **Territory**: places listed under `territory` ("held"), plus cities that list the faction under `factions` ("present")
+- Configurable tables (resources and ranks by default)
+- **Members**: characters whose `faction` or `affiliation` links to the faction, anyone listed under `members`, and the leader. Each shows the character's `faction_tag` (or "Affiliate" for an affiliation)
+- **Allies and rivals**: factions listed under `allies` and `rivals`, plus factions that list this one in theirs, marked "mutual", "listed by them", or with the stance they claim when the two sides disagree
+
+Create one with **Create new faction** or the flag ribbon icon.
+
 ### Creation wizard
 
 Use the **Create new character** command or the ribbon icon. It has six steps: Identity, Attributes (point-buy, base 8, range 3–18, pool 26), Description, Traits, Relationships and Lore. It writes `Characters/<Name>.md`.
@@ -49,6 +67,12 @@ Use the **Open story timeline** command. It shows events on your custom calendar
 New events can also be created with **Create new timeline event** or the **+ Event** button:
 
 <img src="docs/screenshots/event-modal.png" alt="New event dialog" width="600">
+
+### Manuscript corkboard
+
+Scenes connect the worldbuilding to the novel itself. A scene is a normal note with `type: scene` that holds the prose; its frontmatter links it to a POV character, a place and a timeline event. Use **Create new scene** to make one, and **Open manuscript corkboard** (or the book icon in the ribbon) to see them all.
+
+The corkboard has one column per chapter, with scenes in reading order and a trailing *Unplaced* column for scenes without a chapter. Each card shows the summary, POV, location, the linked event with its in-world date, and a live word count from the note body. Drag cards to reorder them or move them to another chapter; the plugin rewrites `chapter` and `order` for you. Click a status pill to move it from draft to revised to final, filter by status or POV, and watch the toolbar meter for how much of the book is at each stage. Right-click a card, or use **Edit current note in wizard**, to change its details in a form.
 
 ### Canvas sync
 
@@ -93,17 +117,86 @@ notable_people: ["[[Old Tamsin]]"]   # optional; characters whose notes link her
 ---
 ```
 
+Species notes look like this (see `example-vault/Species/Tidekin.md`):
+
+```markdown
+---
+type: species
+name: Tidekin
+epithet: Children of the undertow.
+images: ["[[portrait.png]]", "[[shoal.png]]"]
+classification: Amphibious humanoid
+range: "[[Saltreach]]"
+lifespan: 90–120 years
+variants:
+  - { name: Deepkin, range: Trench caves, traits: "Pale, near-blind" }
+abilities:
+  - { name: Gill-breath, kind: Physiology, notes: Hours underwater }
+notable_members: ["[[Old Tamsin]]"]
+---
+An amphibious people of the kelp shelves.   <- Overview
+
+## Behaviour
+
+Cautious with strangers, loyal once a debt is owed.
+
+## Culture
+
+History is sung in tide-chants.
+```
+
+Faction notes look like this (see `example-vault/Factions/`):
+
+```markdown
+---
+type: faction
+name: Gilded Compass
+motto: Every route has a price.
+leader: Guildmaster Ysolde Ost       # text or a [[link]] to a character
+seat: "[[Kesthaven]]"
+power: 7                             # 0–10
+reputation: 3                        # −10 to +10
+goals:
+  - { text: Find who sold the route, done: false }
+territory: ["[[Kesthaven]]"]
+allies: ["[[House Dace]]"]
+rivals: ["[[The Unmapped]]"]
+resources:
+  - { name: Chartroom of Ost, kind: Archive, notes: Six centuries of soundings }
+members: ["[[Old Tamsin]]"]          # optional; characters with faction or affiliation set are added automatically
+---
+The guild of cartographers.   <- Overview
+```
+
 Events show up under "Events here" when they have `location: "[[Kesthaven]]"`.
 
-POV counts come from notes in the manuscript folder that have `pov: "[[Character]]"`.
+### Scene
+
+```yaml
+---
+type: scene
+chapter: 1
+order: 2                              # position within the chapter; the corkboard keeps this up to date
+status: revised                       # draft | revised | final
+pov: "[[Maren Voss]]"
+location: "[[Kesthaven]]"
+event: "[[Fall of Kesthaven]]"        # a timeline event; its date shows on the card
+summary: The Compass offers Maren a contract she shouldn't take.
+---
+The prose. Word counts skip the frontmatter, %%comments%% and link syntax.
+```
+
+The title is the file name. Character sheets count how many scenes are from their POV. In a vault with no scene notes yet, every note in the manuscript folder with `pov: "[[Character]]"` counts instead.
 
 ## Settings
 
-- Folders: characters, events, cities, manuscript
+- Folders: characters, events, cities, species, factions, manuscript
 - Calendar: era name and abbreviation, the 12 month names, the current story year
 - Event categories: key, label and theme colour
 - Description fields per group: add, remove, reorder, and set the type (text, colour, choice, long text)
 - City sheet: the "At a glance" rows (key + label, reorderable) and the tables (frontmatter key, title, columns)
+- Species sheet: the "At a glance" rows, the body sections (add, rename, reorder) and the tables
+- Faction sheet: the "At a glance" rows and the tables
 - Attribute rules
 - Default sheet layout
 - Auto-open character notes as sheets

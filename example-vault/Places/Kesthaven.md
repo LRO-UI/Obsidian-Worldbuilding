@@ -2,11 +2,6 @@
 type: city
 name: Kesthaven
 motto: The tide keeps no ledger.
-images:
-  - "[[kesthaven-harbour.svg]]"
-  - "[[kesthaven-night.svg]]"
-  - "[[kesthaven-storm.svg]]"
-  - "[[kesthaven-ruins.svg]]"
 region: "[[Saltreach]]"
 founded:
   month: 3
