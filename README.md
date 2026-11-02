@@ -74,6 +74,12 @@ Scenes connect the worldbuilding to the novel itself. A scene is a normal note w
 
 The corkboard has one column per chapter, with scenes in reading order and a trailing *Unplaced* column for scenes without a chapter. Each card shows the summary, POV, location, the linked event with its in-world date, and a live word count from the note body. Drag cards to reorder them or move them to another chapter; the plugin rewrites `chapter` and `order` for you. Click a status pill to move it from draft to revised to final, filter by status or POV, and watch the toolbar meter for how much of the book is at each stage. Right-click a card, or use **Edit current note in wizard**, to change its details in a form.
 
+### Relationship graph
+
+**Open relationship graph** (or the waypoints icon in the ribbon) draws every character and everyone named in their `relationships`. In the **Web** layout each relationship is an arrow from the note's owner to the `who`, coloured by kind (family, romance, ally, mentor, rival, business, other) and thicker the stronger the score; negative scores are dashed, and people who both list each other get two curved arrows so you can see when the feeling isn't mutual. Hover a character to see their relationships labelled, drag to rearrange, click to open the note, and click a legend entry to hide that kind. Names without a note yet show as dashed circles.
+
+The **Family tree** layout (also the **Open family tree** command) uses kinds like Father, Mother, Son, Daughter, Brother, Sister, Husband and Wife to place generations top to bottom, with couples side by side and their children below. The kind says what the `who` is to the note's owner, so `{ who: "[[Aldric Dace]]", kind: Father }` on Corvin's note makes Aldric his father. Siblings share parents even if only one of them lists them. Right-click a character note and choose **Show in relationship graph** to jump to them.
+
 ### Canvas sync
 
 The **Sync timeline to canvas** command writes `<Events folder>/<Timeline name>.canvas` in the open JSON Canvas format. Re-syncing keeps the positions you set by hand and only moves a card when its date changed. Optional reverse sync is in settings (experimental): drag a card sideways in the canvas to re-date the event.

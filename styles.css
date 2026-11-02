@@ -476,3 +476,48 @@
 .ct-ms-date { margin-left: auto; flex: none; }
 .ct-avatar.is-tiny { width: 16px; height: 16px; font-size: 8px; }
 .ct-ms-drop { height: 3px; border-radius: 2px; background: var(--interactive-accent); margin: -2px 0; flex: none; }
+
+/* ---------- relationship graph ---------- */
+.ct-relations.view-content { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.ct-rg-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--background-primary); }
+.ct-rg-svg { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; user-select: none; }
+.ct-rg-svg.is-panning, .ct-rg-svg.is-dragging { cursor: grabbing; }
+.ct-rg-note { position: absolute; left: 16px; bottom: 12px; pointer-events: none; }
+
+.ct-rg-toggle { cursor: pointer; border-radius: var(--radius-s); padding: 2px 4px; margin: -2px -4px; }
+.ct-rg-toggle:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.ct-rg-toggle.is-off { opacity: .45; text-decoration: line-through; }
+.ct-rg-swatch { --ct-c: var(--text-muted); width: 16px; height: 3px; border-radius: 2px; background: var(--ct-c); flex: none; }
+.ct-rg-swatch.is-dashed { background: repeating-linear-gradient(90deg, var(--text-muted) 0 5px, transparent 5px 8px); }
+.ct-rg-swatch.is-double { height: 6px; background: transparent; border-top: 2px solid var(--ct-c); border-bottom: 2px solid var(--ct-c); border-radius: 0; }
+
+.ct-rg-edge { --ct-c: var(--text-muted); }
+.ct-rg-line { fill: none; stroke: var(--ct-c); stroke-linecap: round; transition: opacity .15s; }
+.ct-rg-line.is-neg { stroke-dasharray: 7 5; }
+.ct-rg-hit { fill: none; stroke: transparent; stroke-width: 12; }
+.ct-rg-edge-label {
+	font-size: 11px; font-family: var(--font-interface); fill: var(--text-normal); text-anchor: middle; dominant-baseline: middle;
+	paint-order: stroke; stroke: var(--background-primary); stroke-width: 4px; stroke-linejoin: round;
+	opacity: 0; pointer-events: none; transition: opacity .15s;
+}
+.ct-rg-edge-label.is-lit { opacity: 1; }
+
+.ct-rg-node { cursor: pointer; outline: none; }
+.ct-rg-node circle { fill: var(--background-secondary-alt); stroke: var(--text-faint); stroke-width: 1.5; transition: stroke .15s; }
+.ct-rg-node:hover circle, .ct-rg-node:focus-visible circle { stroke: var(--interactive-accent); stroke-width: 2.5; }
+.ct-rg-node.is-other circle { fill: var(--background-secondary); }
+.ct-rg-node.is-unresolved circle { fill: var(--background-primary); stroke-dasharray: 3 3; }
+.ct-rg-node.is-dead { opacity: .6; }
+.ct-rg-node.is-focused circle { stroke: var(--interactive-accent); stroke-width: 4; }
+.ct-rg-initials { fill: var(--text-muted); font-family: var(--font-interface); font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ct-rg-name {
+	font-size: 12px; fill: var(--text-normal); font-family: var(--font-interface); text-anchor: middle; dominant-baseline: hanging; pointer-events: none;
+	paint-order: stroke; stroke: var(--background-primary); stroke-width: 4px; stroke-linejoin: round;
+}
+.ct-rg-node.is-other .ct-rg-name { fill: var(--text-muted); font-size: 11px; }
+
+.ct-rg-svg.is-hovering .ct-rg-node:not(.is-lit), .ct-rg-svg.is-hovering .ct-rg-edge:not(.is-lit) { opacity: .15; }
+.ct-rg-node, .ct-rg-edge { transition: opacity .15s; }
+
+.ct-rg-tree-line { fill: none; stroke: var(--text-muted); stroke-width: 1.5; }
+.ct-rg-spouse { stroke: var(--color-pink); stroke-width: 1.5; }

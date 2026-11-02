@@ -17,6 +17,7 @@ import { CustomSheetView, VIEW_CUSTOM } from "./views/CustomSheetView";
 import { FactionView, VIEW_FACTION } from "./views/FactionView";
 import { GallerySheetView } from "./views/GallerySheetView";
 import { ManuscriptView, VIEW_MANUSCRIPT } from "./views/ManuscriptView";
+import { RelationshipGraphView, VIEW_RELATIONS } from "./views/RelationshipGraphView";
 import { SpeciesView, VIEW_SPECIES } from "./views/SpeciesView";
 import { TimelineView, VIEW_TIMELINE } from "./views/TimelineView";
 
@@ -61,6 +62,7 @@ export default class StoryPlugin extends Plugin {
 		this.registerView(VIEW_FACTION, (leaf) => new FactionView(leaf, this));
 		this.registerView(VIEW_MANUSCRIPT, (leaf) => new ManuscriptView(leaf, this));
 		this.registerView(VIEW_CUSTOM, (leaf) => new CustomSheetView(leaf, this));
+		this.registerView(VIEW_RELATIONS, (leaf) => new RelationshipGraphView(leaf, this));
 
 		this.addRibbonIcon("user-round", "Create new character", () => this.openWizard());
 		this.addRibbonIcon("castle", "Create new city", () => this.openCityModal());
@@ -68,6 +70,7 @@ export default class StoryPlugin extends Plugin {
 		this.addRibbonIcon("flag", "Create new faction", () => this.openFactionModal());
 		this.addRibbonIcon("git-commit-horizontal", "Open story timeline", () => this.openTimeline());
 		this.addRibbonIcon("book-open-text", "Open manuscript corkboard", () => this.openManuscript());
+		this.addRibbonIcon("waypoints", "Open relationship graph", () => this.openRelations());
 
 		this.addCommand({ id: "create-character", name: "Create new character", callback: () => this.openWizard() });
 		this.addCommand({
@@ -97,6 +100,8 @@ export default class StoryPlugin extends Plugin {
 		this.addCommand({ id: "open-timeline", name: "Open story timeline", callback: () => this.openTimeline() });
 		this.addCommand({ id: "create-event", name: "Create new timeline event", callback: () => new EventModal(this.app, this).open() });
 		this.addCommand({ id: "open-manuscript", name: "Open manuscript corkboard", callback: () => this.openManuscript() });
+		this.addCommand({ id: "open-relations", name: "Open relationship graph", callback: () => this.openRelations() });
+		this.addCommand({ id: "open-family-tree", name: "Open family tree", callback: () => this.openRelations({ mode: "tree" }) });
 		this.addCommand({ id: "create-scene", name: "Create new scene", callback: () => this.openSceneModal() });
 		this.addCommand({ id: "sync-canvas", name: "Sync timeline to canvas", callback: () => this.syncCanvas() });
 		this.addCommand({
@@ -121,6 +126,7 @@ export default class StoryPlugin extends Plugin {
 					menu.addItem((i) =>
 						i.setTitle("Show on timeline").setIcon("git-commit-horizontal").onClick(() => this.openTimeline({ focusLane: file.basename }))
 					);
+					menu.addItem((i) => i.setTitle("Show in relationship graph").setIcon("waypoints").onClick(() => this.openRelations({ focus: file.path })));
 				}
 				if (file instanceof TFile && isScene(this.app, file)) {
 					menu.addItem((i) => i.setTitle("Edit scene details").setIcon("wand-sparkles").onClick(() => this.openSceneModal(file)));
@@ -332,6 +338,23 @@ export default class StoryPlugin extends Plugin {
 		}
 		const leaf = this.app.workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_MANUSCRIPT, active: true, state: opts.focus ? { focus: opts.focus } : {} });
+		this.app.workspace.revealLeaf(leaf);
+	}
+
+	// ---------- relationship graph ----------
+
+	async openRelations(opts: { focus?: string; mode?: "web" | "tree" } = {}): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(VIEW_RELATIONS)[0];
+		if (existing) {
+			this.app.workspace.revealLeaf(existing);
+			if (existing.view instanceof RelationshipGraphView) {
+				if (opts.mode) await existing.setViewState({ type: VIEW_RELATIONS, state: { ...existing.view.getState(), mode: opts.mode } });
+				if (opts.focus) existing.view.focusNode(opts.focus);
+			}
+			return;
+		}
+		const leaf = this.app.workspace.getLeaf("tab");
+		await leaf.setViewState({ type: VIEW_RELATIONS, active: true, state: opts });
 		this.app.workspace.revealLeaf(leaf);
 	}
 

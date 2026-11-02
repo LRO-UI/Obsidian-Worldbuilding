@@ -13,4 +13,7 @@ values: [Power]
 weaknesses: [Vain]
 relationships:
   - { who: "[[Maren Voss]]", kind: Creditor, score: -4 }
+  - { who: "[[Aldric Dace]]", kind: Father, score: -3 }
+  - { who: "[[Helene Dace]]", kind: Mother, score: 5 }
+  - { who: "[[Wren Dace]]", kind: Sister, score: 2 }
 ---
