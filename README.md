@@ -80,6 +80,20 @@ The corkboard has one column per chapter, with scenes in reading order and a tra
 
 The **Family tree** layout (also the **Open family tree** command) uses kinds like Father, Mother, Son, Daughter, Brother, Sister, Husband and Wife to place generations top to bottom, with couples side by side and their children below. The kind says what the `who` is to the note's owner, so `{ who: "[[Aldric Dace]]", kind: Father }` on Corvin's note makes Aldric his father. Siblings share parents even if only one of them lists them. Right-click a character note and choose **Show in relationship graph** to jump to them.
 
+### Interactive map
+
+A map is a note with `type: map`: an image of your world with pins and borders on top. Use **Create new map** to make one from an image in your vault or on your computer, or right-click an image and choose **Create map from image**. **Open map** (or the map icon in the ribbon) opens it, and asks which one if you have several.
+
+- **View:** drag to pan and scroll or pinch to zoom. Click a pin or border to open its note's sheet beside the map; Ctrl/Cmd-click opens it in a new tab.
+- **Pins:** a list beside the map shows the places that aren't on it yet. Pick one, then click where it goes; type a new name in the search box to create the city as you place it. You can also click the map to drop a pin by hand, or drag a note onto the map from the file list. Drag a pin to move it and click it to change its note, label, colour or dates. A pin linked to a note that doesn't exist yet is dashed, and clicking it in View creates the city.
+- **Borders:** the list shows factions and regions the same way; a new name creates a faction. Pick one, then outline it. With **Lasso**, hold and drag around the area and let go; the outline is simplified to a shape you can adjust. With **Corners**, click each corner and close it by double-clicking, pressing Enter or clicking the first corner. Scroll to zoom and drag with the middle button to pan while you draw. Click a border to reshape it: drag a corner, drag a small dot to add a corner, right-click a corner to remove it. While the map is filtered **By date**, a new border starts at that date unless you untick the option in the list.
+
+After adding from the list, **Set dates** opens the details form and **Undo** removes what you just added.
+
+Choose **By date** at the bottom of the map to filter it by the timeline. The slider has one notch for each date on which something changes: a pin or border appears or ends, or an event happens at a pinned place. Pins pulse while an event is under way there. To show borders by era, draw one border per era and give each its dates, so a realm can grow, shrink or fall as you step through. Anything without its own dates uses its linked note's: when a city or faction was `founded`, or an event's `tl-start` and `tl-end`. With no dates at all, it's always shown.
+
+Right-click a note that has a pin and choose **Show on map** to jump to it.
+
 ### Canvas sync
 
 The **Sync timeline to canvas** command writes `<Events folder>/<Timeline name>.canvas` in the open JSON Canvas format. Re-syncing keeps the positions you set by hand and only moves a card when its date changed. Optional reverse sync is in settings (experimental): drag a card sideways in the canvas to re-date the event.
@@ -194,9 +208,35 @@ The prose. Word counts skip the frontmatter, %%comments%% and link syntax.
 
 The title is the file name. Character sheets count how many scenes are from their POV. In a vault with no scene notes yet, every note in the manuscript folder with `pov: "[[Character]]"` counts instead.
 
+### Map
+
+The map view writes these for you (see `example-vault/Maps/Map of the Saltreach.md`). Positions are fractions of the image, so you can swap in a larger export and everything stays put.
+
+```yaml
+---
+type: map
+name: Map of the Saltreach
+image: "[[saltreach-map.svg]]"
+pins:
+  - note: "[[Kesthaven]]"
+    x: 0.5469                         # 0 is the left edge, 1 the right
+    y: 0.54                           # 0 is the top edge, 1 the bottom
+    color: blue                       # optional: red, orange, yellow, green, cyan, blue, purple, pink
+    label: The old harbour            # optional; defaults to the note's name
+    from: { month: 3, year: 612 }     # optional; defaults to the note's founded or tl-start
+    to: { month: 6, year: 1042 }      # optional; defaults to the note's tl-end. Inclusive
+borders:
+  - note: "[[House Dace]]"            # optional, like every key but points
+    label: Dace holdings
+    color: red
+    from: { month: 6, year: 1042 }
+    points: 0.34,0.34 0.62,0.26 0.63,0.42 0.56,0.6 0.52,0.96
+---
+```
+
 ## Settings
 
-- Folders: characters, events, cities, species, factions, manuscript
+- Folders: characters, events, cities, species, factions, maps, manuscript
 - Calendar: era name and abbreviation, the 12 month names, the current story year
 - Event categories: key, label and theme colour
 - Description fields per group: add, remove, reorder, and set the type (text, colour, choice, long text)

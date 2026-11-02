@@ -1,4 +1,5 @@
 import { AbstractInputSuggest, App, FuzzySuggestModal, Keymap, Modal, TFile, setIcon } from "obsidian";
+import { fromIndex, toIndex } from "../calendar";
 import { parseLink, STAT_KEYS } from "../model";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -64,6 +65,19 @@ export function renderLinkish(app: App, parent: HTMLElement, raw: string, source
 	return a;
 }
 
+/** Month and year inputs for a month index. */
+export function dateInput(parent: HTMLElement, months: string[], idx: number, onChange: (i: number) => void): void {
+	const d = fromIndex(idx);
+	const row = parent.createDiv({ cls: "ct-row-8" });
+	const sel = row.createEl("select", { cls: "dropdown" });
+	months.forEach((m, i) => sel.createEl("option", { text: m, value: String(i) }));
+	sel.value = String(d.month);
+	const yr = row.createEl("input", { type: "number", value: String(d.year), cls: "ct-year" });
+	const fire = () => onChange(toIndex({ month: Number(sel.value), year: Number(yr.value) || 0 }));
+	sel.addEventListener("change", fire);
+	yr.addEventListener("input", fire);
+}
+
 export function button(parent: HTMLElement, text: string, onClick: (e: MouseEvent) => void, cls = "ct-btn"): HTMLButtonElement {
 	const b = parent.createEl("button", { text, cls });
 	b.addEventListener("click", onClick);
@@ -72,7 +86,7 @@ export function button(parent: HTMLElement, text: string, onClick: (e: MouseEven
 
 /** Suggests vault notes in a text input; the chosen note is written back as a [[wikilink]]. */
 export class NoteSuggest extends AbstractInputSuggest<TFile> {
-	constructor(app: App, private input: HTMLInputElement, private onPick?: (link: string) => void, private filter?: (f: TFile) => boolean) {
+	constructor(app: App, private input: HTMLInputElement, private onPick?: (link: string) => void, private filter?: (f: TFile) => boolean, private rank?: (f: TFile) => number) {
 		super(app, input);
 	}
 	getSuggestions(query: string): TFile[] {
@@ -80,6 +94,7 @@ export class NoteSuggest extends AbstractInputSuggest<TFile> {
 		return this.app.vault
 			.getMarkdownFiles()
 			.filter((f) => (!this.filter || this.filter(f)) && f.basename.toLowerCase().includes(q))
+			.sort((a, b) => (this.rank ? this.rank(a) - this.rank(b) : 0))
 			.slice(0, 30);
 	}
 	renderSuggestion(file: TFile, el: HTMLElement): void {
@@ -95,12 +110,12 @@ export class NoteSuggest extends AbstractInputSuggest<TFile> {
 	}
 }
 
-const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
+export const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
 
 export class ImagePickerModal extends FuzzySuggestModal<TFile> {
-	constructor(app: App, private onPick: (file: TFile) => void) {
+	constructor(app: App, private onPick: (file: TFile) => void, placeholder = "Pick a portrait image from the vault") {
 		super(app);
-		this.setPlaceholder("Pick a portrait image from the vault");
+		this.setPlaceholder(placeholder);
 	}
 	getItems(): TFile[] {
 		return this.app.vault.getFiles().filter((f) => IMAGE_EXT.includes(f.extension.toLowerCase()));

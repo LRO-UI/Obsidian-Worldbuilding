@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+<defs>
+<linearGradient id="sea" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a9c4c2"/><stop offset="1" stop-color="#7fa3a8"/></linearGradient>
+<linearGradient id="land" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6d9b4"/><stop offset="1" stop-color="#d8c797"/></linearGradient>
+<g id="peak"><path d="M-26 18 L0 -22 L26 18 Z" fill="#b8a67c" stroke="#5c4c30" stroke-width="2"/><path d="M0 -22 L9 -8 L2 -3 L-5 -9 Z" fill="#f5efdc"/></g>
+<g id="tree"><path d="M0 -14 L9 6 L-9 6 Z" fill="#7c8f5e" stroke="#4d5a38" stroke-width="1.5"/></g>
+</defs>
+<rect width="1600" height="1000" fill="url(#sea)"/>
+<g fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2">
+<path d="M1180 160 q30 -14 60 0 t60 0"/><path d="M1340 430 q30 -14 60 0 t60 0"/><path d="M1230 760 q30 -14 60 0 t60 0"/><path d="M1420 640 q30 -14 60 0 t60 0"/><path d="M1400 150 q30 -14 60 0 t60 0"/>
+</g>
+<path d="M0 0 H1040 C1020 70 1090 110 1060 180 C1030 240 960 230 950 300 C940 370 1020 400 1000 470 C985 525 900 505 880 560 C860 620 950 650 930 720 C910 790 830 770 800 830 C775 885 830 950 800 1000 H0 Z" fill="url(#land)" stroke="#5c4c30" stroke-width="4"/>
+<path d="M1120 300 C1170 280 1230 310 1215 360 C1200 410 1130 415 1105 375 C1090 350 1095 315 1120 300 Z" fill="url(#land)" stroke="#5c4c30" stroke-width="3"/>
+<path d="M1090 620 C1120 600 1160 615 1150 650 C1140 685 1095 690 1080 660 C1072 645 1076 630 1090 620 Z" fill="url(#land)" stroke="#5c4c30" stroke-width="3"/>
+<path d="M210 160 C300 260 330 330 420 420 C500 500 640 500 760 510 C810 515 860 520 893 540" fill="none" stroke="#6f93a0" stroke-width="7" stroke-linecap="round"/>
+<use href="#peak" x="150" y="120"/><use href="#peak" x="215" y="95"/><use href="#peak" x="285" y="125"/><use href="#peak" x="110" y="190"/><use href="#peak" x="185" y="200"/><use href="#peak" x="350" y="90"/><use href="#peak" x="420" y="120"/><use href="#peak" x="490" y="85"/><use href="#peak" x="70" y="110"/>
+<use href="#tree" x="240" y="640"/><use href="#tree" x="275" y="620"/><use href="#tree" x="310" y="650"/><use href="#tree" x="345" y="625"/><use href="#tree" x="260" y="680"/><use href="#tree" x="300" y="700"/><use href="#tree" x="340" y="680"/><use href="#tree" x="380" y="660"/><use href="#tree" x="220" y="710"/><use href="#tree" x="415" y="695"/><use href="#tree" x="360" y="725"/><use href="#tree" x="280" y="745"/>
+<use href="#tree" x="690" y="200"/><use href="#tree" x="725" y="180"/><use href="#tree" x="760" y="210"/><use href="#tree" x="705" y="240"/><use href="#tree" x="745" y="250"/><use href="#tree" x="790" y="235"/>
+<text x="1290" y="560" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="34" fill="#355a63" letter-spacing="6">The Grey Sound</text>
+<text x="540" y="830" text-anchor="middle" font-family="Georgia, serif" font-size="52" fill="#5c4c30" letter-spacing="14" opacity=".55">THE SALTREACH</text>
+<g transform="translate(1470 860)" stroke="#355a63" fill="#355a63"><circle r="52" fill="none" stroke-width="2"/><path d="M0 -62 L9 0 L0 62 L-9 0 Z" stroke-width="1"/><path d="M-62 0 L0 -9 L62 0 L0 9 Z" stroke-width="1" fill-opacity=".5"/><text y="-68" text-anchor="middle" font-family="Georgia, serif" font-size="20" stroke="none">N</text></g>
+</svg>

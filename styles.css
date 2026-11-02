@@ -521,3 +521,81 @@
 
 .ct-rg-tree-line { fill: none; stroke: var(--text-muted); stroke-width: 1.5; }
 .ct-rg-spouse { stroke: var(--color-pink); stroke-width: 1.5; }
+
+/* ---------- map ---------- */
+.ct-map.view-content { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.ct-map-body { flex: 1; min-height: 0; display: flex; }
+.ct-map-stage { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; outline: none; background: var(--background-secondary); }
+.ct-map-panel { flex: none; width: 260px; display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: hidden; background: var(--background-primary); border-left: 1px solid var(--background-modifier-border); }
+.ct-map-panel.is-hidden { display: none; }
+.ct-map-modes { align-self: flex-start; background: var(--background-secondary); }
+.ct-map-search { width: 100%; flex: none; }
+.ct-map-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.ct-map-list .ct-label { margin-top: 8px; }
+.ct-map-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 5px 8px; border-radius: var(--radius-s); cursor: pointer; font-size: 13px; }
+.ct-map-row:hover, .ct-map-row:focus-visible { background: var(--background-modifier-hover); }
+.ct-map-row.is-armed, .ct-map-row.is-armed .ct-faint { background: var(--interactive-accent); color: var(--text-on-accent); }
+.ct-map-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-map-row .ct-faint { flex: none; }
+.ct-map-added { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--background-secondary); }
+.ct-map-ghost { opacity: .7; pointer-events: none; --ct-c: var(--interactive-accent); }
+@media (max-width: 600px) {
+	.ct-map-body { flex-direction: column; }
+	.ct-map-panel { width: auto; max-height: 40%; border-left: 0; border-top: 1px solid var(--background-modifier-border); }
+}
+.ct-map-svg { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; user-select: none; }
+.ct-map-svg.is-panning { cursor: grabbing; }
+.ct-map-svg[data-tool="pins"], .ct-map-svg[data-tool="borders"] { cursor: crosshair; }
+.ct-map-svg[data-tool="pins"] .ct-map-border, .ct-map-svg[data-tool="borders"] .ct-map-pin { pointer-events: none; }
+.ct-map-svg .is-hidden { display: none; }
+
+.ct-map-pin { --ct-c: var(--interactive-accent); cursor: pointer; outline: none; }
+.ct-map-svg[data-tool="pins"] .ct-map-pin { cursor: move; }
+.ct-map-marker { fill: var(--ct-c); stroke: var(--background-primary); stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45)); }
+.ct-map-marker-dot { fill: var(--background-primary); pointer-events: none; }
+.ct-map-pin:hover .ct-map-marker, .ct-map-pin:focus-visible .ct-map-marker { stroke: var(--text-normal); stroke-width: 2; }
+.ct-map-pin.is-unresolved .ct-map-marker { fill: var(--background-primary); stroke: var(--ct-c); stroke-dasharray: 3 3; }
+.ct-map-pin.is-unresolved .ct-map-marker-dot { fill: var(--ct-c); }
+.ct-map-pin-label {
+	font-size: 12px; font-weight: 600; font-family: var(--font-interface); fill: var(--text-normal); dominant-baseline: central; pointer-events: none;
+	paint-order: stroke; stroke: var(--background-primary); stroke-width: 4px; stroke-linejoin: round;
+}
+.ct-map-pulse { fill: none; stroke: var(--ct-c); stroke-width: 2; opacity: 0; pointer-events: none; }
+.ct-map-pin.is-active .ct-map-pulse, .ct-map-pin.is-focused .ct-map-pulse { opacity: .8; animation: ct-map-pulse 1.6s ease-out infinite; }
+.ct-map-pin.is-focused .ct-map-marker { stroke: var(--text-normal); stroke-width: 2; }
+@keyframes ct-map-pulse { from { r: 11px; opacity: .8; } to { r: 26px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+	.ct-map-pin.is-active .ct-map-pulse, .ct-map-pin.is-focused .ct-map-pulse { animation: none; r: 16px; }
+}
+
+.ct-map-border { --ct-c: var(--interactive-accent); }
+.ct-map-border.has-note { cursor: pointer; }
+.ct-map-area { fill: var(--ct-c); fill-opacity: .2; stroke: var(--ct-c); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: fill-opacity .15s; }
+.ct-map-border:hover .ct-map-area { fill-opacity: .32; }
+.ct-map-area-label {
+	font-size: 13px; font-weight: 600; letter-spacing: .08em; font-family: var(--font-interface); fill: var(--text-normal); text-anchor: middle; dominant-baseline: central; pointer-events: none;
+	paint-order: stroke; stroke: var(--background-primary); stroke-width: 3px; stroke-linejoin: round;
+}
+
+.ct-map-handle { fill: var(--background-primary); stroke: var(--interactive-accent); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: move; }
+.ct-map-handle.is-mid { fill: var(--interactive-accent); stroke: var(--background-primary); stroke-width: 1; cursor: copy; }
+.ct-map-handle.is-closing { fill: var(--interactive-accent); cursor: pointer; }
+.ct-map-draft { fill: none; stroke: var(--interactive-accent); stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+
+.ct-map-hint {
+	position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content;
+	display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 12px; font-size: 12px; color: var(--text-muted);
+	background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s);
+	pointer-events: none;
+}
+.ct-map-hint button { pointer-events: auto; }
+.ct-map-hint.is-hidden, .ct-map-time.is-hidden { display: none; }
+
+.ct-map-time { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); flex-wrap: wrap; }
+.ct-map-time .ct-seg { flex: none; }
+.ct-map-track { position: relative; flex: 1 1 200px; min-width: 120px; display: flex; align-items: center; padding-bottom: 6px; }
+.ct-map-slider { width: 100%; margin: 0; }
+.ct-map-ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; pointer-events: none; }
+.ct-map-tick { position: absolute; width: 1px; height: 5px; background: var(--text-faint); }
+.ct-map-when { flex: 0 1 280px; min-width: 150px; display: flex; flex-direction: column; gap: 1px; }
+.ct-map-when-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

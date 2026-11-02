@@ -1,8 +1,8 @@
 import { App, Modal, Notice, normalizePath, stringifyYaml, TFile } from "obsidian";
-import { fromIndex, toIndex } from "../calendar";
+import { fromIndex } from "../calendar";
 import type StoryPlugin from "../main";
 import { ensureFolder, isCharacter, joinPath, safeFileName } from "../model";
-import { button, NoteSuggest } from "../ui/components";
+import { button, dateInput, NoteSuggest } from "../ui/components";
 
 export interface EventPrefill {
 	lane?: string; // basename or "World"
@@ -33,18 +33,6 @@ export class EventModal extends Modal {
 		this.render();
 	}
 
-	private dateInput(parent: HTMLElement, idx: number, onChange: (i: number) => void): void {
-		const d = fromIndex(idx);
-		const row = parent.createDiv({ cls: "ct-row-8" });
-		const sel = row.createEl("select", { cls: "dropdown" });
-		this.plugin.settings.months.forEach((m, i) => sel.createEl("option", { text: m, value: String(i) }));
-		sel.value = String(d.month);
-		const yr = row.createEl("input", { type: "number", value: String(d.year), cls: "ct-year" });
-		const fire = () => onChange(toIndex({ month: Number(sel.value), year: Number(yr.value) || 0 }));
-		sel.addEventListener("change", fire);
-		yr.addEventListener("input", fire);
-	}
-
 	private render(): void {
 		const el = this.contentEl;
 		el.empty();
@@ -59,7 +47,7 @@ export class EventModal extends Modal {
 
 		const s = grid.createDiv({ cls: "ct-field" });
 		s.createEl("label", { text: "Start" });
-		this.dateInput(s, this.start, (i) => (this.start = i));
+		dateInput(s, this.plugin.settings.months, this.start, (i) => (this.start = i));
 
 		const e = grid.createDiv({ cls: "ct-field" });
 		const lab = e.createEl("label", { cls: "ct-row-6" });
@@ -70,7 +58,7 @@ export class EventModal extends Modal {
 			this.end = cb.checked ? this.start + 12 : null;
 			this.render();
 		});
-		if (this.end != null) this.dateInput(e, this.end, (i) => (this.end = i));
+		if (this.end != null) dateInput(e, this.plugin.settings.months, this.end, (i) => (this.end = i));
 
 		const l = grid.createDiv({ cls: "ct-field" });
 		l.createEl("label", { text: "Lane" });

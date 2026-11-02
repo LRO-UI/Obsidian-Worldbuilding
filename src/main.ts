@@ -1,22 +1,26 @@
-import { MarkdownView, Plugin, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { FuzzySuggestModal, MarkdownView, Plugin, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import { Calendar } from "./calendar";
 import { CanvasSyncRecord, canvasPath, reverseSyncFromCanvas, syncTimelineToCanvas } from "./canvas";
+import { collectMaps, mapsShowing } from "./maps";
 import { isCharacter, isScene } from "./model";
 import { CityModal } from "./modals/CityModal";
 import { CharacterWizard } from "./modals/CharacterWizard";
 import { CustomTypeModal, CustomTypePicker } from "./modals/CustomTypeModal";
 import { EventModal } from "./modals/EventModal";
 import { FactionModal } from "./modals/FactionModal";
+import { MapModal } from "./modals/MapModal";
 import { SceneModal } from "./modals/SceneModal";
 import { SpeciesModal } from "./modals/SpeciesModal";
 import { cloneDefaults, CustomType, DescGroupKey, PluginSettings } from "./settings";
 import { StorySettingTab } from "./SettingsTab";
+import { IMAGE_EXT } from "./ui/components";
 import { CharacterView, VIEW_CHARACTER } from "./views/CharacterView";
 import { CityView, VIEW_CITY } from "./views/CityView";
 import { CustomSheetView, VIEW_CUSTOM } from "./views/CustomSheetView";
 import { FactionView, VIEW_FACTION } from "./views/FactionView";
 import { GallerySheetView } from "./views/GallerySheetView";
 import { ManuscriptView, VIEW_MANUSCRIPT } from "./views/ManuscriptView";
+import { MapView, VIEW_MAP } from "./views/MapView";
 import { RelationshipGraphView, VIEW_RELATIONS } from "./views/RelationshipGraphView";
 import { SpeciesView, VIEW_SPECIES } from "./views/SpeciesView";
 import { TimelineView, VIEW_TIMELINE } from "./views/TimelineView";
@@ -33,7 +37,24 @@ const SHEETS: Record<string, SheetInfo> = {
 	city: { view: VIEW_CITY, icon: "castle", label: "city sheet" },
 	species: { view: VIEW_SPECIES, icon: "paw-print", label: "species sheet" },
 	faction: { view: VIEW_FACTION, icon: "flag", label: "faction sheet" },
+	map: { view: VIEW_MAP, icon: "map", label: "map" },
 };
+
+class MapPicker extends FuzzySuggestModal<TFile> {
+	constructor(plugin: StoryPlugin, private maps: TFile[], private onPick: (f: TFile) => void) {
+		super(plugin.app);
+		this.setPlaceholder("Open a map");
+	}
+	getItems(): TFile[] {
+		return this.maps;
+	}
+	getItemText(f: TFile): string {
+		return f.basename;
+	}
+	onChooseItem(f: TFile): void {
+		this.onPick(f);
+	}
+}
 
 interface StoredData extends Partial<PluginSettings> {
 	canvasRecord?: CanvasSyncRecord | null;
@@ -63,6 +84,7 @@ export default class StoryPlugin extends Plugin {
 		this.registerView(VIEW_MANUSCRIPT, (leaf) => new ManuscriptView(leaf, this));
 		this.registerView(VIEW_CUSTOM, (leaf) => new CustomSheetView(leaf, this));
 		this.registerView(VIEW_RELATIONS, (leaf) => new RelationshipGraphView(leaf, this));
+		this.registerView(VIEW_MAP, (leaf) => new MapView(leaf, this));
 
 		this.addRibbonIcon("user-round", "Create new character", () => this.openWizard());
 		this.addRibbonIcon("castle", "Create new city", () => this.openCityModal());
@@ -71,6 +93,7 @@ export default class StoryPlugin extends Plugin {
 		this.addRibbonIcon("git-commit-horizontal", "Open story timeline", () => this.openTimeline());
 		this.addRibbonIcon("book-open-text", "Open manuscript corkboard", () => this.openManuscript());
 		this.addRibbonIcon("waypoints", "Open relationship graph", () => this.openRelations());
+		this.addRibbonIcon("map", "Open map", () => this.openMap());
 
 		this.addCommand({ id: "create-character", name: "Create new character", callback: () => this.openWizard() });
 		this.addCommand({
@@ -102,6 +125,8 @@ export default class StoryPlugin extends Plugin {
 		this.addCommand({ id: "open-manuscript", name: "Open manuscript corkboard", callback: () => this.openManuscript() });
 		this.addCommand({ id: "open-relations", name: "Open relationship graph", callback: () => this.openRelations() });
 		this.addCommand({ id: "open-family-tree", name: "Open family tree", callback: () => this.openRelations({ mode: "tree" }) });
+		this.addCommand({ id: "open-map", name: "Open map", callback: () => this.openMap() });
+		this.addCommand({ id: "create-map", name: "Create new map", callback: () => this.openMapModal() });
 		this.addCommand({ id: "create-scene", name: "Create new scene", callback: () => this.openSceneModal() });
 		this.addCommand({ id: "sync-canvas", name: "Sync timeline to canvas", callback: () => this.syncCanvas() });
 		this.addCommand({
@@ -127,6 +152,13 @@ export default class StoryPlugin extends Plugin {
 						i.setTitle("Show on timeline").setIcon("git-commit-horizontal").onClick(() => this.openTimeline({ focusLane: file.basename }))
 					);
 					menu.addItem((i) => i.setTitle("Show in relationship graph").setIcon("waypoints").onClick(() => this.openRelations({ focus: file.path })));
+				}
+				if (file instanceof TFile && file.extension === "md") {
+					const map = mapsShowing(this.app, file)[0];
+					if (map) menu.addItem((i) => i.setTitle("Show on map").setIcon("map").onClick(() => this.openMap({ file: map, focus: file.path })));
+				}
+				if (file instanceof TFile && IMAGE_EXT.includes(file.extension.toLowerCase())) {
+					menu.addItem((i) => i.setTitle("Create map from image").setIcon("map").onClick(() => this.openMapModal({ image: file })));
 				}
 				if (file instanceof TFile && isScene(this.app, file)) {
 					menu.addItem((i) => i.setTitle("Edit scene details").setIcon("wand-sparkles").onClick(() => this.openSceneModal(file)));
@@ -162,13 +194,14 @@ export default class StoryPlugin extends Plugin {
 	}
 
 	refreshViews(): void {
-		for (const type of [VIEW_CHARACTER, VIEW_CITY, VIEW_SPECIES, VIEW_FACTION, VIEW_CUSTOM, VIEW_TIMELINE, VIEW_MANUSCRIPT]) {
+		for (const type of [VIEW_CHARACTER, VIEW_CITY, VIEW_SPECIES, VIEW_FACTION, VIEW_CUSTOM, VIEW_TIMELINE, VIEW_MANUSCRIPT, VIEW_MAP]) {
 			for (const leaf of this.app.workspace.getLeavesOfType(type)) {
 				const v = leaf.view;
 				if (v instanceof TimelineView) {
 					v.reload();
 					v.render();
 				} else if (v instanceof ManuscriptView) v.reload();
+				else if (v instanceof MapView) v.redraw();
 				else if (v instanceof CharacterView || v instanceof GallerySheetView) v.render();
 			}
 		}
@@ -260,6 +293,12 @@ export default class StoryPlugin extends Plugin {
 		await leaf.setViewState({ type: sheet.view, state: { file: file.path }, active: true });
 	}
 
+	/** Shows the note in `leaf`, as its sheet if it has one. */
+	async openNoteIn(leaf: WorkspaceLeaf, file: TFile): Promise<void> {
+		if (this.sheetFor(file)) await this.showSheet(leaf, file);
+		else await leaf.openFile(file);
+	}
+
 	async openSheet(file: TFile): Promise<void> {
 		const leaf = this.app.workspace.getLeaf(false);
 		await this.showSheet(leaf, file);
@@ -279,6 +318,11 @@ export default class StoryPlugin extends Plugin {
 	/** New faction, or edit `file` in place. */
 	openFactionModal(file?: TFile): void {
 		new FactionModal(this.app, this, (f) => this.openSheet(f), file ?? null).open();
+	}
+
+	/** New map, optionally from `image`, or edit `file` in place. */
+	openMapModal(opts: { file?: TFile; image?: TFile } = {}): void {
+		new MapModal(this.app, this, opts.file ?? null, opts.image ?? null, (f) => this.openSheet(f)).open();
 	}
 
 	/** New note of a custom type, or edit `file` in place. */
@@ -307,6 +351,7 @@ export default class StoryPlugin extends Plugin {
 		else if (type === "city") this.openCityModal(file);
 		else if (type === "species") this.openSpeciesModal(file);
 		else if (type === "faction") this.openFactionModal(file);
+		else if (type === "map") this.openMapModal({ file });
 		else if (type === "scene") this.openSceneModal(file);
 		else if (this.customType(type)) this.openCustomModal(this.customType(type)!, file);
 		else return false;
@@ -355,6 +400,31 @@ export default class StoryPlugin extends Plugin {
 		}
 		const leaf = this.app.workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_RELATIONS, active: true, state: opts });
+		this.app.workspace.revealLeaf(leaf);
+	}
+
+	// ---------- maps ----------
+
+	/** Opens `file`, or the vault's only map. Offers a choice when there are several and a new map when there are none. */
+	async openMap(opts: { file?: TFile; focus?: string } = {}): Promise<void> {
+		let file = opts.file;
+		if (!file) {
+			const maps = collectMaps(this.app);
+			if (!maps.length) return this.openMapModal();
+			if (maps.length > 1) {
+				new MapPicker(this, maps, (f) => this.openMap({ ...opts, file: f })).open();
+				return;
+			}
+			file = maps[0];
+		}
+		const existing = this.app.workspace.getLeavesOfType(VIEW_MAP).find((l) => l.view instanceof MapView && l.view.file === file);
+		if (existing) {
+			this.app.workspace.revealLeaf(existing);
+			if (opts.focus && existing.view instanceof MapView) existing.view.focusPin(opts.focus);
+			return;
+		}
+		const leaf = this.app.workspace.getLeaf("tab");
+		await leaf.setViewState({ type: VIEW_MAP, active: true, state: { file: file.path, focus: opts.focus } });
 		this.app.workspace.revealLeaf(leaf);
 	}
 

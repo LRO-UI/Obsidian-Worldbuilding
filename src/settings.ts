@@ -55,7 +55,7 @@ export interface CustomType {
 }
 
 /** Frontmatter types with a dedicated view; custom types can't reuse them. */
-export const BUILT_IN_TYPES = ["character", "city", "species", "faction", "scene", "event"];
+export const BUILT_IN_TYPES = ["character", "city", "species", "faction", "scene", "event", "map"];
 
 /** Starting points offered by "Add type" in settings. */
 export const CUSTOM_TYPE_PRESETS: CustomType[] = [
@@ -140,6 +140,7 @@ export interface PluginSettings {
 	citiesFolder: string;
 	speciesFolder: string;
 	factionsFolder: string;
+	mapsFolder: string;
 	timelineName: string;
 	eraName: string;
 	eraAbbr: string;
@@ -178,6 +179,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	citiesFolder: "Places",
 	speciesFolder: "Species",
 	factionsFolder: "Factions",
+	mapsFolder: "Maps",
 	timelineName: "Saltreach Arc",
 	eraName: "Third Age",
 	eraAbbr: "TA",

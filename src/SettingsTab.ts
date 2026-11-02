@@ -24,7 +24,7 @@ export class StorySettingTab extends PluginSettingTab {
 
 		// Folders
 		new Setting(containerEl).setName("Folders").setHeading();
-		const folder = (name: string, desc: string, key: "charactersFolder" | "eventsFolder" | "manuscriptFolder" | "citiesFolder" | "speciesFolder" | "factionsFolder") =>
+		const folder = (name: string, desc: string, key: "charactersFolder" | "eventsFolder" | "manuscriptFolder" | "citiesFolder" | "speciesFolder" | "factionsFolder" | "mapsFolder") =>
 			new Setting(containerEl).setName(name).setDesc(desc).addText((t) =>
 				t.setValue(s[key]).onChange(async (v) => {
 					s[key] = v.trim();
@@ -36,6 +36,7 @@ export class StorySettingTab extends PluginSettingTab {
 		folder("Cities folder", "Where \"Create new city\" saves city notes.", "citiesFolder");
 		folder("Species folder", "Where \"Create new species\" saves species notes.", "speciesFolder");
 		folder("Factions folder", "Where \"Create new faction\" saves faction notes.", "factionsFolder");
+		folder("Maps folder", "Where \"Create new map\" saves map notes.", "mapsFolder");
 		folder("Manuscript folder", "Where \"Create new scene\" saves scene notes (type: scene). Their pov: \"[[Character]]\" counts toward POV totals.", "manuscriptFolder");
 
 		// Sheet
